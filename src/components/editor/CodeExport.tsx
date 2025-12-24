@@ -500,20 +500,20 @@ window.addEventListener('resize', () => {
           Export Code
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[80vh]">
+      <DialogContent className="w-[95vw] max-w-3xl max-h-[85vh] sm:max-h-[80vh] p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>Export Code</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-base sm:text-lg">Export Code</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
             Download your particle animation as reusable code
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
             <div className="flex-1">
               <Label className="text-xs text-muted-foreground mb-2 block">Format</Label>
               <Select value={format} onValueChange={(v: ExportFormat) => setFormat(v)}>
-                <SelectTrigger>
+                <SelectTrigger className="h-9 sm:h-10 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -524,11 +524,12 @@ window.addEventListener('resize', () => {
               </Select>
             </div>
             
-            <div className="flex gap-2 pt-5">
-              <Button variant="outline" size="sm" onClick={handleCopy}>
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleCopy} className="flex-1 sm:flex-none">
+                {copied ? <Check className="h-4 w-4 mr-1.5 sm:mr-0" /> : <Copy className="h-4 w-4 mr-1.5 sm:mr-0" />}
+                <span className="sm:hidden">{copied ? 'Copied' : 'Copy'}</span>
               </Button>
-              <Button size="sm" onClick={handleDownload}>
+              <Button size="sm" onClick={handleDownload} className="flex-1 sm:flex-none">
                 <Download className="h-4 w-4 mr-1.5" />
                 Download
               </Button>
@@ -536,17 +537,17 @@ window.addEventListener('resize', () => {
           </div>
 
           <div className="relative">
-            <pre className="bg-muted/50 rounded-lg p-4 text-xs overflow-auto max-h-96 font-mono">
+            <pre className="bg-muted/50 rounded-lg p-3 sm:p-4 text-[10px] sm:text-xs overflow-auto max-h-60 sm:max-h-96 font-mono">
               <code>{getCode()}</code>
             </pre>
           </div>
 
-          <div className="text-xs text-muted-foreground">
+          <div className="text-[10px] sm:text-xs text-muted-foreground">
             {format === 'react' && (
-              <p>Install dependencies: <code className="bg-muted px-1 rounded">npm install three @react-three/fiber @react-three/drei</code></p>
+              <p>Install: <code className="bg-muted px-1 rounded text-[10px] sm:text-xs">npm install three @react-three/fiber @react-three/drei</code></p>
             )}
             {format === 'vanilla' && (
-              <p>Install dependencies: <code className="bg-muted px-1 rounded">npm install three</code></p>
+              <p>Install: <code className="bg-muted px-1 rounded text-[10px] sm:text-xs">npm install three</code></p>
             )}
             {format === 'html' && (
               <p>No dependencies needed - uses CDN imports. Just open in a browser!</p>

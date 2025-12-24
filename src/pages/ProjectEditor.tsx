@@ -86,19 +86,22 @@ export default function ProjectEditor() {
     }
   }, [assets, selectedAssetId]);
 
-  // Playback timer
+  // Playback timer with loop support
   useEffect(() => {
     if (!isPlaying) return;
     
     const interval = setInterval(() => {
       setCurrentTime(prev => {
         const next = prev + 0.016; // ~60fps
-        return next >= settings.duration ? 0 : next;
+        if (next >= settings.duration) {
+          return settings.loop ? 0 : settings.duration;
+        }
+        return next;
       });
     }, 16);
     
     return () => clearInterval(interval);
-  }, [isPlaying, settings.duration]);
+  }, [isPlaying, settings.duration, settings.loop]);
 
   const fetchProject = async () => {
     setLoading(true);
