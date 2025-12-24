@@ -1,3 +1,4 @@
+import { useCallback, useState, useRef } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -5,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { RotateCcw, Image, Palette } from 'lucide-react';
+import { RotateCcw, Image, Palette, Upload, Loader2 } from 'lucide-react';
 
-export type TransitionStyle = 'morph' | 'explode' | 'swirl' | 'wave' | 'depth' | 'dissolve' | 'spiral' | 'gravity' | 'vortex' | 'pixelate';
+export type TransitionStyle = 'morph' | 'explode' | 'swirl' | 'wave' | 'depth' | 'dissolve' | 'spiral' | 'gravity' | 'vortex' | 'pixelate' | 'shatter' | 'magnetic' | 'ripple' | 'scatter' | 'tornado';
 export type BackgroundType = 'color' | 'gradient' | 'image';
 
 export interface ParticleSettings {
@@ -24,6 +25,9 @@ export interface ParticleSettings {
   autoRotate: boolean;
   depthEnabled: boolean;
   loop: boolean;
+  colorContrast: number;
+  colorSaturation: number;
+  colorBrightness: number;
 }
 
 export const defaultSettings: ParticleSettings = {
@@ -40,15 +44,41 @@ export const defaultSettings: ParticleSettings = {
   autoRotate: false,
   depthEnabled: false,
   loop: true,
+  colorContrast: 1.0,
+  colorSaturation: 1.0,
+  colorBrightness: 1.0,
 };
 
 interface ParticleControlsProps {
   settings: ParticleSettings;
   onSettingsChange: (settings: Partial<ParticleSettings>) => void;
   onReset?: () => void;
+  onUploadBackgroundImage?: (files: File[]) => Promise<string | undefined>;
 }
 
-export function ParticleControls({ settings, onSettingsChange, onReset }: ParticleControlsProps) {
+export function ParticleControls({ settings, onSettingsChange, onReset, onUploadBackgroundImage }: ParticleControlsProps) {
+  const [uploadingBg, setUploadingBg] = useState(false);
+  const bgFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBgFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).filter(file => 
+      file.type.startsWith('image/')
+    );
+
+    if (files.length > 0 && onUploadBackgroundImage) {
+      setUploadingBg(true);
+      try {
+        const url = await onUploadBackgroundImage(files);
+        if (url) {
+          onSettingsChange({ backgroundImage: url, backgroundType: 'image' });
+        }
+      } finally {
+        setUploadingBg(false);
+      }
+    }
+    
+    e.target.value = '';
+  }, [onUploadBackgroundImage, onSettingsChange]);
   return (
     <div className="space-y-6">
       {/* Reset Button */}
@@ -114,6 +144,65 @@ export function ParticleControls({ settings, onSettingsChange, onReset }: Partic
 
       <Separator className="bg-border/50" />
 
+      {/* Color Enhancement */}
+      <div>
+        <h3 className="text-sm font-medium mb-3">Color Enhancement</h3>
+        <div className="space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-xs text-muted-foreground">Contrast</Label>
+              <span className="text-xs font-mono text-muted-foreground">
+                {settings.colorContrast.toFixed(1)}
+              </span>
+            </div>
+            <Slider
+              value={[settings.colorContrast]}
+              onValueChange={([value]) => onSettingsChange({ colorContrast: value })}
+              min={0.5}
+              max={2.0}
+              step={0.1}
+              className="w-full"
+            />
+          </div>
+          
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-xs text-muted-foreground">Saturation</Label>
+              <span className="text-xs font-mono text-muted-foreground">
+                {settings.colorSaturation.toFixed(1)}
+              </span>
+            </div>
+            <Slider
+              value={[settings.colorSaturation]}
+              onValueChange={([value]) => onSettingsChange({ colorSaturation: value })}
+              min={0.0}
+              max={2.0}
+              step={0.1}
+              className="w-full"
+            />
+          </div>
+          
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-xs text-muted-foreground">Brightness</Label>
+              <span className="text-xs font-mono text-muted-foreground">
+                {settings.colorBrightness.toFixed(1)}
+              </span>
+            </div>
+            <Slider
+              value={[settings.colorBrightness]}
+              onValueChange={([value]) => onSettingsChange({ colorBrightness: value })}
+              min={0.5}
+              max={2.0}
+              step={0.1}
+              className="w-full"
+            />
+          </div>
+        </div>
+      </div>
+
+      <Separator className="bg-border/50" />
+
       {/* Transition Settings */}
       <div>
         <h3 className="text-sm font-medium mb-3">Transition</h3>
@@ -140,6 +229,11 @@ export function ParticleControls({ settings, onSettingsChange, onReset }: Partic
                 <SelectItem value="gravity">Gravity - Fall & rise</SelectItem>
                 <SelectItem value="vortex">Vortex - Tunnel effect</SelectItem>
                 <SelectItem value="pixelate">Pixelate - Grid shuffle</SelectItem>
+                <SelectItem value="shatter">Shatter - Glass break</SelectItem>
+                <SelectItem value="magnetic">Magnetic - Attract & repel</SelectItem>
+                <SelectItem value="ripple">Ripple - Water drop</SelectItem>
+                <SelectItem value="scatter">Scatter - Random spread</SelectItem>
+                <SelectItem value="tornado">Tornado - Funnel spin</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -342,12 +436,34 @@ export function ParticleControls({ settings, onSettingsChange, onReset }: Partic
           {/* Image Background */}
           {settings.backgroundType === 'image' && (
             <div className="space-y-3">
-              <Input
-                value={settings.backgroundImage}
-                onChange={(e) => onSettingsChange({ backgroundImage: e.target.value })}
-                className="h-9 font-mono text-xs bg-input/50"
-                placeholder="https://example.com/image.jpg"
-              />
+              <div className="flex gap-2">
+                <Input
+                  value={settings.backgroundImage}
+                  onChange={(e) => onSettingsChange({ backgroundImage: e.target.value })}
+                  className="h-9 flex-1 font-mono text-xs bg-input/50"
+                  placeholder="https://example.com/image.jpg"
+                />
+                <input
+                  ref={bgFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleBgFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-3"
+                  onClick={() => bgFileInputRef.current?.click()}
+                  disabled={uploadingBg || !onUploadBackgroundImage}
+                >
+                  {uploadingBg ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
               {settings.backgroundImage && (
                 <div 
                   className="h-20 rounded-md border border-border/50 bg-cover bg-center"
@@ -355,7 +471,7 @@ export function ParticleControls({ settings, onSettingsChange, onReset }: Partic
                 />
               )}
               <p className="text-[10px] text-muted-foreground">
-                Paste an image URL or use an uploaded asset URL
+                Upload an image or paste a URL
               </p>
             </div>
           )}

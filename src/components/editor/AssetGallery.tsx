@@ -2,7 +2,24 @@ import { Asset } from '@/hooks/useProjectAssets';
 import { ImageUploader, AssetThumbnail } from './ImageUploader';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FolderOpen } from 'lucide-react';
+import { FolderOpen, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface AssetGalleryProps {
   assets: Asset[];
@@ -12,6 +29,50 @@ interface AssetGalleryProps {
   onUpload: (files: File[]) => Promise<void>;
   onSelect: (assetId: string) => void;
   onDelete: (assetId: string) => void;
+  onReorder?: (assets: Asset[]) => void;
+}
+
+interface SortableAssetProps {
+  asset: Asset;
+  selected: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}
+
+function SortableAsset({ asset, selected, onSelect, onDelete }: SortableAssetProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: asset.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative group">
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-1 left-1 z-10 h-6 w-6 rounded bg-background/80 flex items-center justify-center cursor-grab opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <GripVertical className="h-3 w-3 text-muted-foreground" />
+      </div>
+      <AssetThumbnail
+        url={asset.file_url}
+        name={asset.file_name || 'Image'}
+        selected={selected}
+        onSelect={onSelect}
+        onDelete={onDelete}
+      />
+    </div>
+  );
 }
 
 export function AssetGallery({
@@ -22,7 +83,30 @@ export function AssetGallery({
   onUpload,
   onSelect,
   onDelete,
+  onReorder,
 }: AssetGalleryProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = assets.findIndex((a) => a.id === active.id);
+      const newIndex = assets.findIndex((a) => a.id === over.id);
+      const newOrder = arrayMove(assets, oldIndex, newIndex);
+      onReorder?.(newOrder);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -57,18 +141,25 @@ export function AssetGallery({
         </div>
       ) : (
         <ScrollArea className="flex-1 -mx-4 px-4">
-          <div className="grid grid-cols-2 gap-2">
-            {assets.map((asset) => (
-              <AssetThumbnail
-                key={asset.id}
-                url={asset.file_url}
-                name={asset.file_name || 'Image'}
-                selected={selectedAssets.includes(asset.id)}
-                onSelect={() => onSelect(asset.id)}
-                onDelete={() => onDelete(asset.id)}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={assets.map(a => a.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-2 gap-2">
+                {assets.map((asset) => (
+                  <SortableAsset
+                    key={asset.id}
+                    asset={asset}
+                    selected={selectedAssets.includes(asset.id)}
+                    onSelect={() => onSelect(asset.id)}
+                    onDelete={() => onDelete(asset.id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </ScrollArea>
       )}
 
@@ -77,6 +168,9 @@ export function AssetGallery({
         <div className="mt-4 pt-4 border-t border-border/50">
           <p className="text-xs text-muted-foreground">
             {selectedAssets.length} image{selectedAssets.length > 1 ? 's' : ''} selected
+          </p>
+          <p className="text-[10px] text-muted-foreground/70 mt-1">
+            Drag to reorder images
           </p>
         </div>
       )}

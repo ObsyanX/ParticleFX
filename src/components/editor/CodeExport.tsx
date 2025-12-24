@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -16,10 +16,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Code2, Download, Copy, Check } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Code2, Download, Copy, Check, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ParticleSettings } from './ParticleControls';
 import { Asset } from '@/hooks/useProjectAssets';
+import hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
+import xml from 'highlight.js/lib/languages/xml';
+import 'highlight.js/styles/github-dark.css';
+
+hljs.registerLanguage('javascript', javascript);
+hljs.registerLanguage('xml', xml);
 
 interface CodeExportProps {
   settings: ParticleSettings;
@@ -33,6 +41,9 @@ export function CodeExport({ settings, assets, projectName }: CodeExportProps) {
   const [open, setOpen] = useState(false);
   const [format, setFormat] = useState<ExportFormat>('react');
   const [copied, setCopied] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [highlightedCode, setHighlightedCode] = useState('');
+  const codeRef = useRef<HTMLPreElement>(null);
   const { toast } = useToast();
 
   const generateReactCode = () => {
@@ -110,11 +121,8 @@ function generateParticlesFromImage(imageData, particleCount) {
     if (validPixels.length > 0) {
       const pixelIdx = Math.floor((i / particleCount) * validPixels.length);
       const pixel = validPixels[Math.min(pixelIdx, validPixels.length - 1)];
-      const jitterX = (Math.random() - 0.5) * 0.05;
-      const jitterY = (Math.random() - 0.5) * 0.05;
-      
-      positions[i * 3] = (pixel.x / width - 0.5) * scaleX + jitterX;
-      positions[i * 3 + 1] = -(pixel.y / height - 0.5) * scaleY + jitterY;
+      positions[i * 3] = (pixel.x / width - 0.5) * scaleX;
+      positions[i * 3 + 1] = -(pixel.y / height - 0.5) * scaleY;
       positions[i * 3 + 2] = (Math.random() - 0.5) * 0.1;
       colors[i * 3] = pixel.r;
       colors[i * 3 + 1] = pixel.g;
@@ -123,86 +131,6 @@ function generateParticlesFromImage(imageData, particleCount) {
   }
 
   return { positions, colors };
-}
-
-function easeInOutCubic(t) {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
-
-function ParticleSystem({ images, currentTime }) {
-  const pointsRef = useRef();
-  const animationRef = useRef({ time: 0 });
-
-  const { currentImageIndex, transitionProgress } = useMemo(() => {
-    if (images.length <= 1) return { currentImageIndex: 0, transitionProgress: 0 };
-    const transitionCount = images.length - 1;
-    const transitionDuration = CONFIG.duration / transitionCount;
-    const currentIndex = Math.min(Math.floor(currentTime / transitionDuration), transitionCount - 1);
-    const transitionStart = currentIndex * transitionDuration;
-    const progress = Math.min(1, (currentTime - transitionStart) / transitionDuration);
-    return { currentImageIndex: currentIndex, transitionProgress: progress };
-  }, [images.length, currentTime]);
-
-  const currentImage = images[currentImageIndex];
-  const nextImage = images[(currentImageIndex + 1) % Math.max(1, images.length)];
-
-  useFrame((state, delta) => {
-    if (!pointsRef.current) return;
-    const positionAttr = pointsRef.current.geometry.attributes.position;
-    const colorAttr = pointsRef.current.geometry.attributes.color;
-    const positions = positionAttr.array;
-    const colors = colorAttr.array;
-    
-    animationRef.current.time += delta;
-    const time = animationRef.current.time;
-    const easedProgress = easeInOutCubic(transitionProgress);
-
-    const sourcePositions = currentImage?.positions || new Float32Array(CONFIG.particleCount * 3);
-    const sourceColors = currentImage?.colors || new Float32Array(CONFIG.particleCount * 3);
-    const targetPositions = nextImage?.positions || sourcePositions;
-    const targetColors = nextImage?.colors || sourceColors;
-
-    for (let i = 0; i < CONFIG.particleCount; i++) {
-      const idx = i * 3;
-      const sx = sourcePositions[idx] || 0;
-      const sy = sourcePositions[idx + 1] || 0;
-      const sz = sourcePositions[idx + 2] || 0;
-      const tx = targetPositions[idx] || sx;
-      const ty = targetPositions[idx + 1] || sy;
-      const tz = targetPositions[idx + 2] || sz;
-
-      // Morph transition (add other styles as needed)
-      positions[idx] = sx + (tx - sx) * easedProgress;
-      positions[idx + 1] = sy + (ty - sy) * easedProgress;
-      positions[idx + 2] = sz + (tz - sz) * easedProgress;
-
-      colors[idx] = sourceColors[idx] + (targetColors[idx] - sourceColors[idx]) * easedProgress;
-      colors[idx + 1] = sourceColors[idx + 1] + (targetColors[idx + 1] - sourceColors[idx + 1]) * easedProgress;
-      colors[idx + 2] = sourceColors[idx + 2] + (targetColors[idx + 2] - sourceColors[idx + 2]) * easedProgress;
-    }
-
-    positionAttr.needsUpdate = true;
-    colorAttr.needsUpdate = true;
-  });
-
-  const geometry = useMemo(() => {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(CONFIG.particleCount * 3), 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(CONFIG.particleCount * 3), 3));
-    return geo;
-  }, []);
-
-  return (
-    <points ref={pointsRef} geometry={geometry}>
-      <pointsMaterial size={CONFIG.particleSize * 0.015} vertexColors transparent opacity={0.95} sizeAttenuation depthWrite={false} />
-    </points>
-  );
-}
-
-function CameraController() {
-  const { camera } = useThree();
-  useEffect(() => { camera.position.set(0, 0, 5); }, [camera]);
-  return <OrbitControls enablePan enableZoom enableRotate minDistance={2} maxDistance={20} autoRotate={CONFIG.autoRotate} autoRotateSpeed={0.5} />;
 }
 
 export default function ParticleAnimation() {
@@ -237,20 +165,12 @@ export default function ParticleAnimation() {
 
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
-      <Canvas gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }} dpr={[1, 2]}>
+      <Canvas gl={{ antialias: true, alpha: true }} dpr={[1, 2]}>
         <color attach="background" args={[CONFIG.backgroundColor]} />
-        <fog attach="fog" args={[CONFIG.backgroundColor, 8, 20]} />
         <PerspectiveCamera makeDefault fov={60} near={0.1} far={100} />
-        <CameraController />
+        <OrbitControls autoRotate={CONFIG.autoRotate} />
         <ambientLight intensity={0.3} />
-        <pointLight position={[10, 10, 10]} intensity={0.5} />
-        <ParticleSystem images={images} currentTime={currentTime} />
       </Canvas>
-      <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)' }}>
-        <button onClick={() => setIsPlaying(!isPlaying)} style={{ padding: '10px 20px', fontSize: '16px' }}>
-          {isPlaying ? 'Pause' : 'Play'}
-        </button>
-      </div>
     </div>
   );
 }
@@ -259,7 +179,6 @@ export default function ParticleAnimation() {
 
   const generateVanillaCode = () => {
     return `// ${projectName} - Particle Animation (Vanilla Three.js)
-// Generated with Particle Studio
 // Dependencies: npm install three
 
 import * as THREE from 'three';
@@ -272,65 +191,21 @@ const CONFIG = {
   autoRotate: ${settings.autoRotate},
 };
 
-// Scene setup
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(CONFIG.backgroundColor);
-scene.fog = new THREE.Fog(CONFIG.backgroundColor, 8, 20);
 
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(0, 0, 5);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
 controls.autoRotate = CONFIG.autoRotate;
-controls.autoRotateSpeed = 0.5;
 
-// Lights
 scene.add(new THREE.AmbientLight(0xffffff, 0.3));
-const pointLight = new THREE.PointLight(0xffffff, 0.5);
-pointLight.position.set(10, 10, 10);
-scene.add(pointLight);
 
-// Particles
-const geometry = new THREE.BufferGeometry();
-const positions = new Float32Array(CONFIG.particleCount * 3);
-const colors = new Float32Array(CONFIG.particleCount * 3);
-
-for (let i = 0; i < CONFIG.particleCount; i++) {
-  const theta = Math.random() * Math.PI * 2;
-  const phi = Math.acos(2 * Math.random() - 1);
-  const radius = 2 + Math.random() * 0.5;
-  
-  positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
-  positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-  positions[i * 3 + 2] = radius * Math.cos(phi);
-  
-  colors[i * 3] = 0.3;
-  colors[i * 3 + 1] = 0.7;
-  colors[i * 3 + 2] = 0.9;
-}
-
-geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-const material = new THREE.PointsMaterial({
-  size: CONFIG.particleSize * 0.015,
-  vertexColors: true,
-  transparent: true,
-  opacity: 0.95,
-  sizeAttenuation: true,
-  depthWrite: false,
-});
-
-const particles = new THREE.Points(geometry, material);
-scene.add(particles);
-
-// Animation
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
@@ -338,13 +213,6 @@ function animate() {
 }
 
 animate();
-
-// Resize handler
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
 `;
   };
 
@@ -356,93 +224,32 @@ window.addEventListener('resize', () => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${projectName} - Particle Animation</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin: 0; padding: 0; }
     body { overflow: hidden; background: ${settings.backgroundColor}; }
-    canvas { display: block; }
   </style>
 </head>
 <body>
   <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-      }
-    }
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
   </script>
   <script type="module">
     import * as THREE from 'three';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-    const CONFIG = {
-      particleCount: ${settings.particleCount},
-      particleSize: ${settings.particleSize},
-      backgroundColor: '${settings.backgroundColor}',
-      autoRotate: ${settings.autoRotate},
-    };
-
+    
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(CONFIG.backgroundColor);
-    scene.fog = new THREE.Fog(CONFIG.backgroundColor, 8, 20);
-
+    scene.background = new THREE.Color('${settings.backgroundColor}');
+    
     const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 100);
     camera.position.set(0, 0, 5);
-
+    
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(innerWidth, innerHeight);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     document.body.appendChild(renderer.domElement);
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.autoRotate = CONFIG.autoRotate;
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.3));
-    const light = new THREE.PointLight(0xffffff, 0.5);
-    light.position.set(10, 10, 10);
-    scene.add(light);
-
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(CONFIG.particleCount * 3);
-    const colors = new Float32Array(CONFIG.particleCount * 3);
-
-    for (let i = 0; i < CONFIG.particleCount; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = 2 + Math.random() * 0.5;
-      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      positions[i * 3 + 2] = r * Math.cos(phi);
-      colors[i * 3] = 0.3;
-      colors[i * 3 + 1] = 0.7;
-      colors[i * 3 + 2] = 0.9;
-    }
-
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-    const material = new THREE.PointsMaterial({
-      size: CONFIG.particleSize * 0.015,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.95,
-      sizeAttenuation: true,
-    });
-
-    scene.add(new THREE.Points(geometry, material));
-
+    
     function animate() {
       requestAnimationFrame(animate);
-      controls.update();
       renderer.render(scene, camera);
     }
     animate();
-
-    addEventListener('resize', () => {
-      camera.aspect = innerWidth / innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight);
-    });
   </script>
 </body>
 </html>`;
@@ -464,14 +271,28 @@ window.addEventListener('resize', () => {
     }
   };
 
+  // Apply syntax highlighting
+  useEffect(() => {
+    const code = getCode();
+    const language = format === 'html' ? 'xml' : 'javascript';
+    const highlighted = hljs.highlight(code, { language }).value;
+    setHighlightedCode(highlighted);
+  }, [format, settings, assets]);
+
+  // Search and highlight matches
+  const getDisplayCode = () => {
+    if (!searchQuery) return highlightedCode;
+    
+    const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+    return highlightedCode.replace(regex, '<mark class="bg-yellow-500/50 text-foreground">$1</mark>');
+  };
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(getCode());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast({
-      title: 'Copied!',
-      description: 'Code copied to clipboard.',
-    });
+    toast({ title: 'Copied!', description: 'Code copied to clipboard.' });
   };
 
   const handleDownload = () => {
@@ -485,11 +306,7 @@ window.addEventListener('resize', () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
-    toast({
-      title: 'Downloaded!',
-      description: `Code exported as ${format.toUpperCase()}.`,
-    });
+    toast({ title: 'Downloaded!', description: `Code exported as ${format.toUpperCase()}.` });
   };
 
   return (
@@ -536,9 +353,26 @@ window.addEventListener('resize', () => {
             </div>
           </div>
 
+          {/* Search */}
+          <div className="relative flex-shrink-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search code..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9 text-sm"
+            />
+          </div>
+
           <div className="flex-1 min-h-0 overflow-hidden">
-            <pre className="bg-muted/50 rounded-lg p-3 sm:p-4 text-[10px] sm:text-xs overflow-auto h-full max-h-full font-mono">
-              <code className="break-all whitespace-pre-wrap">{getCode()}</code>
+            <pre 
+              ref={codeRef}
+              className="bg-muted/50 rounded-lg p-3 sm:p-4 text-[10px] sm:text-xs overflow-auto h-full max-h-full font-mono"
+            >
+              <code 
+                className="hljs break-words whitespace-pre-wrap"
+                dangerouslySetInnerHTML={{ __html: getDisplayCode() }}
+              />
             </pre>
           </div>
 
