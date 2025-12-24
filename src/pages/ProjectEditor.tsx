@@ -53,7 +53,9 @@ export default function ProjectEditor() {
     loading: assetsLoading, 
     uploading, 
     uploadMultipleAssets, 
-    deleteAsset 
+    deleteAsset,
+    reorderAssets,
+    uploadAsset,
   } = useProjectAssets(id);
   
   // Selection and playback state
@@ -166,6 +168,16 @@ export default function ProjectEditor() {
         : [...prev, assetId]
     );
   }, []);
+
+  const handleReorderAssets = useCallback((newOrder: typeof assets) => {
+    reorderAssets(newOrder);
+  }, [reorderAssets]);
+
+  const handleUploadBackgroundImage = useCallback(async (files: File[]): Promise<string | undefined> => {
+    if (!user || files.length === 0) return undefined;
+    const asset = await uploadAsset(files[0], user.id);
+    return asset?.file_url;
+  }, [user, uploadAsset]);
 
   const handleSettingsChange = useCallback((newSettings: Partial<ParticleSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));
@@ -284,6 +296,7 @@ export default function ProjectEditor() {
                 onUpload={handleUpload}
                 onSelect={handleAssetSelect}
                 onDelete={deleteAsset}
+                onReorder={handleReorderAssets}
               />
             </div>
           </aside>
@@ -333,6 +346,7 @@ export default function ProjectEditor() {
               settings={settings}
               onSettingsChange={handleSettingsChange}
               onReset={handleResetSettings}
+              onUploadBackgroundImage={handleUploadBackgroundImage}
             />
           </aside>
         )}
