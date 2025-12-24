@@ -20,7 +20,7 @@ interface ParticleSystemProps {
   particleCount: number;
   particleSize: number;
   isPlaying: boolean;
-  backgroundColor: string;
+  depthEnabled: boolean;
 }
 
 function loadImageData(url: string): Promise<ImageData> {
@@ -35,7 +35,8 @@ function loadImageData(url: string): Promise<ImageData> {
         return;
       }
 
-      const maxSize = 128;
+      // Use larger size for better color sampling
+      const maxSize = 256;
       const scale = Math.min(maxSize / img.width, maxSize / img.height);
       canvas.width = Math.floor(img.width * scale);
       canvas.height = Math.floor(img.height * scale);
@@ -57,47 +58,59 @@ function generateParticlesFromImage(imageData: ImageData, particleCount: number)
   const scaleX = 4 * aspectRatio;
   const scaleY = 4;
 
-  let particleIndex = 0;
-  const samplingStep = Math.max(1, Math.floor((width * height) / particleCount));
-
-  for (let i = 0; i < width * height && particleIndex < particleCount; i += samplingStep) {
-    const x = i % width;
-    const y = Math.floor(i / width);
-    const pixelIndex = (y * width + x) * 4;
-
-    const r = data[pixelIndex] / 255;
-    const g = data[pixelIndex + 1] / 255;
-    const b = data[pixelIndex + 2] / 255;
-    const a = data[pixelIndex + 3] / 255;
-
-    if (a < 0.1) continue;
-
-    const px = (x / width - 0.5) * scaleX;
-    const py = -(y / height - 0.5) * scaleY;
-    const pz = (r + g + b) / 3 * 0.5 - 0.25;
-
-    positions[particleIndex * 3] = px;
-    positions[particleIndex * 3 + 1] = py;
-    positions[particleIndex * 3 + 2] = pz;
-
-    colors[particleIndex * 3] = r;
-    colors[particleIndex * 3 + 1] = g;
-    colors[particleIndex * 3 + 2] = b;
-
-    particleIndex++;
+  // Collect all valid pixels with their colors
+  const validPixels: { x: number; y: number; r: number; g: number; b: number }[] = [];
+  
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const pixelIndex = (y * width + x) * 4;
+      const a = data[pixelIndex + 3] / 255;
+      
+      if (a > 0.1) {
+        validPixels.push({
+          x,
+          y,
+          r: data[pixelIndex] / 255,
+          g: data[pixelIndex + 1] / 255,
+          b: data[pixelIndex + 2] / 255,
+        });
+      }
+    }
   }
 
-  // Fill remaining with random positions
-  while (particleIndex < particleCount) {
-    positions[particleIndex * 3] = (Math.random() - 0.5) * scaleX;
-    positions[particleIndex * 3 + 1] = (Math.random() - 0.5) * scaleY;
-    positions[particleIndex * 3 + 2] = (Math.random() - 0.5) * 0.5;
+  // Distribute particles across valid pixels
+  for (let i = 0; i < particleCount; i++) {
+    if (validPixels.length > 0) {
+      // Sample from valid pixels with some randomization for density
+      const pixelIdx = Math.floor((i / particleCount) * validPixels.length);
+      const pixel = validPixels[Math.min(pixelIdx, validPixels.length - 1)];
+      
+      // Add small random offset for natural look
+      const jitterX = (Math.random() - 0.5) * 0.05;
+      const jitterY = (Math.random() - 0.5) * 0.05;
+      
+      const px = (pixel.x / width - 0.5) * scaleX + jitterX;
+      const py = -(pixel.y / height - 0.5) * scaleY + jitterY;
+      const pz = (Math.random() - 0.5) * 0.1;
 
-    colors[particleIndex * 3] = 0.2;
-    colors[particleIndex * 3 + 1] = 0.8;
-    colors[particleIndex * 3 + 2] = 0.9;
+      positions[i * 3] = px;
+      positions[i * 3 + 1] = py;
+      positions[i * 3 + 2] = pz;
 
-    particleIndex++;
+      // Use actual pixel colors
+      colors[i * 3] = pixel.r;
+      colors[i * 3 + 1] = pixel.g;
+      colors[i * 3 + 2] = pixel.b;
+    } else {
+      // Fallback for images with no valid pixels
+      positions[i * 3] = (Math.random() - 0.5) * scaleX;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * scaleY;
+      positions[i * 3 + 2] = 0;
+
+      colors[i * 3] = 0.5;
+      colors[i * 3 + 1] = 0.5;
+      colors[i * 3 + 2] = 0.5;
+    }
   }
 
   return { positions, colors };
@@ -115,7 +128,7 @@ function ParticleSystem({
   particleCount,
   particleSize,
   isPlaying,
-  backgroundColor,
+  depthEnabled,
 }: ParticleSystemProps) {
   const pointsRef = useRef<THREE.Points>(null);
   const animationRef = useRef({ time: 0 });
@@ -134,9 +147,11 @@ function ParticleSystem({
       positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
       positions[i * 3 + 2] = radius * Math.cos(phi);
 
-      colors[i * 3] = 0.2;
-      colors[i * 3 + 1] = 0.8;
-      colors[i * 3 + 2] = 0.9;
+      // Use a nice gradient color
+      const hue = (i / particleCount) * 0.3 + 0.5;
+      colors[i * 3] = hue * 0.3;
+      colors[i * 3 + 1] = hue * 0.7;
+      colors[i * 3 + 2] = hue;
     }
 
     return { positions, colors };
@@ -191,7 +206,6 @@ function ParticleSystem({
           const explodePhase = easedProgress < 0.5 ? easedProgress * 2 : (1 - easedProgress) * 2;
           const explodeForce = Math.sin(explodePhase * Math.PI) * 3;
           const angle = Math.atan2(sy, sx);
-          const dist = Math.sqrt(sx * sx + sy * sy);
           
           if (easedProgress < 0.5) {
             px = sx + Math.cos(angle + i * 0.01) * explodeForce;
@@ -249,65 +263,69 @@ function ParticleSystem({
         pz += Math.sin(time * 0.4 + py * 2) * 0.01;
       }
 
+      // Apply depth effect if enabled
+      if (depthEnabled) {
+        const brightness = (sourceColors[idx] + sourceColors[idx + 1] + sourceColors[idx + 2]) / 3;
+        pz += brightness * 0.5 - 0.25;
+      }
+
       positions[idx] = px;
       positions[idx + 1] = py;
       positions[idx + 2] = pz;
 
-      // Interpolate colors
-      colors[idx] = sourceColors[idx] + (targetColors[idx] - sourceColors[idx]) * easedProgress;
-      colors[idx + 1] = sourceColors[idx + 1] + (targetColors[idx + 1] - sourceColors[idx + 1]) * easedProgress;
-      colors[idx + 2] = sourceColors[idx + 2] + (targetColors[idx + 2] - sourceColors[idx + 2]) * easedProgress;
+      // Interpolate colors - use exact source colors when no transition
+      if (transitionProgress === 0 || images.length <= 1) {
+        colors[idx] = sourceColors[idx] || 0.5;
+        colors[idx + 1] = sourceColors[idx + 1] || 0.5;
+        colors[idx + 2] = sourceColors[idx + 2] || 0.5;
+      } else {
+        colors[idx] = sourceColors[idx] + ((targetColors[idx] || sourceColors[idx]) - sourceColors[idx]) * easedProgress;
+        colors[idx + 1] = sourceColors[idx + 1] + ((targetColors[idx + 1] || sourceColors[idx + 1]) - sourceColors[idx + 1]) * easedProgress;
+        colors[idx + 2] = sourceColors[idx + 2] + ((targetColors[idx + 2] || sourceColors[idx + 2]) - sourceColors[idx + 2]) * easedProgress;
+      }
     }
 
     positionAttr.needsUpdate = true;
     colorAttr.needsUpdate = true;
   });
 
-  // Initial geometry
-  const initialPositions = useMemo(() => {
-    return new Float32Array(particleCount * 3);
-  }, [particleCount]);
-
-  const initialColors = useMemo(() => {
+  // Initial geometry - create once with fixed size
+  const geometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
+    
+    // Initialize with default values
     for (let i = 0; i < particleCount; i++) {
-      colors[i * 3] = 0.2;
-      colors[i * 3 + 1] = 0.8;
-      colors[i * 3 + 2] = 0.9;
+      positions[i * 3] = 0;
+      positions[i * 3 + 1] = 0;
+      positions[i * 3 + 2] = 0;
+      colors[i * 3] = 0.5;
+      colors[i * 3 + 1] = 0.5;
+      colors[i * 3 + 2] = 0.5;
     }
-    return colors;
+    
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    return geo;
   }, [particleCount]);
 
   return (
-    <points ref={pointsRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={particleCount}
-          array={initialPositions}
-          itemSize={3}
-        />
-        <bufferAttribute
-          attach="attributes-color"
-          count={particleCount}
-          array={initialColors}
-          itemSize={3}
-        />
-      </bufferGeometry>
+    <points ref={pointsRef} geometry={geometry}>
       <pointsMaterial
-        size={particleSize * 0.02}
+        size={particleSize * 0.015}
         vertexColors
         transparent
-        opacity={0.9}
+        opacity={0.95}
         sizeAttenuation
         depthWrite={false}
-        blending={THREE.AdditiveBlending}
       />
     </points>
   );
 }
 
-function CameraController() {
+function CameraController({ autoRotate }: { autoRotate: boolean }) {
   const { camera } = useThree();
   
   useEffect(() => {
@@ -321,7 +339,8 @@ function CameraController() {
       enableRotate={true}
       minDistance={2}
       maxDistance={20}
-      autoRotate={false}
+      autoRotate={autoRotate}
+      autoRotateSpeed={0.5}
     />
   );
 }
@@ -339,6 +358,8 @@ interface ParticleCanvasProps {
   transitionStyle?: TransitionStyle;
   isPlaying?: boolean;
   backgroundColor?: string;
+  autoRotate?: boolean;
+  depthEnabled?: boolean;
 }
 
 export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasProps>(({
@@ -350,12 +371,14 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasPro
   transitionStyle = 'morph',
   isPlaying = true,
   backgroundColor = '#0a0a0f',
+  autoRotate = false,
+  depthEnabled = false,
 }, ref) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [imageDataStates, setImageDataStates] = useState<ImageDataState[]>([]);
 
   useImperativeHandle(ref, () => ({
-    getCanvas: () => canvasRef.current,
+    getCanvas: () => containerRef.current?.querySelector('canvas') || null,
   }));
 
   // Load all images
@@ -406,9 +429,9 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasPro
   }, [assets.length, currentTime, duration]);
 
   return (
-    <div className="w-full h-full rounded-lg overflow-hidden">
+    <div ref={containerRef} className="w-full h-full rounded-lg overflow-hidden">
       <Canvas
-        ref={canvasRef}
+        key={`canvas-${particleCount}`}
         gl={{ 
           antialias: true,
           alpha: true,
@@ -418,15 +441,16 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasPro
         dpr={[1, 2]}
       >
         <color attach="background" args={[backgroundColor]} />
-        <fog attach="fog" args={[backgroundColor, 5, 15]} />
+        <fog attach="fog" args={[backgroundColor, 8, 20]} />
         
         <PerspectiveCamera makeDefault fov={60} near={0.1} far={100} />
-        <CameraController />
+        <CameraController autoRotate={autoRotate} />
 
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} intensity={1} />
+        <ambientLight intensity={0.3} />
+        <pointLight position={[10, 10, 10]} intensity={0.5} />
 
         <ParticleSystem
+          key={`particles-${particleCount}`}
           images={imageDataStates}
           currentImageIndex={currentImageIndex}
           transitionProgress={transitionProgress}
@@ -434,7 +458,7 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasPro
           particleCount={particleCount}
           particleSize={particleSize}
           isPlaying={isPlaying}
-          backgroundColor={backgroundColor}
+          depthEnabled={depthEnabled}
         />
       </Canvas>
     </div>

@@ -11,7 +11,8 @@ import { ParticleCanvas, ParticleCanvasHandle } from '@/components/editor/Partic
 import { ParticleControls, ParticleSettings, defaultSettings } from '@/components/editor/ParticleControls';
 import { Timeline } from '@/components/editor/Timeline';
 import { VideoExport } from '@/components/editor/VideoExport';
-import { 
+import { CodeExport } from '@/components/editor/CodeExport';
+import {
   ArrowLeft, 
   Loader2, 
   Sparkles, 
@@ -255,6 +256,12 @@ export default function ProjectEditor() {
               fps={settings.fps}
               projectName={projectName}
             />
+            
+            <CodeExport
+              settings={settings}
+              assets={assets}
+              projectName={projectName}
+            />
           </div>
         </div>
       </header>
@@ -283,7 +290,7 @@ export default function ProjectEditor() {
         <main className="flex-1 flex items-center justify-center bg-muted/10 p-4 min-w-0">
           <div className="w-full h-full max-w-5xl max-h-[70vh] rounded-xl overflow-hidden border border-border/50 shadow-xl">
             {assets.length > 0 ? (
-              <ParticleCanvas
+            <ParticleCanvas
                 ref={canvasRef}
                 assets={assets}
                 currentTime={currentTime}
@@ -293,6 +300,8 @@ export default function ProjectEditor() {
                 transitionStyle={settings.transitionStyle}
                 isPlaying={isPlaying}
                 backgroundColor={settings.backgroundColor}
+                autoRotate={settings.autoRotate}
+                depthEnabled={settings.depthEnabled}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-card/50">
