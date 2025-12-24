@@ -3,8 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { Asset } from '@/hooks/useProjectAssets';
-
-type TransitionStyle = 'morph' | 'explode' | 'swirl' | 'wave' | 'depth';
+import { TransitionStyle } from './ParticleControls';
 
 interface ImageDataState {
   data: ImageData;
@@ -250,6 +249,67 @@ function ParticleSystem({
             py = ty;
             pz = tz - depthOffset * (1 - easedProgress) * 2;
           }
+          break;
+        }
+        case 'dissolve': {
+          const dissolveProgress = easedProgress;
+          const noise = Math.sin(i * 0.1 + time) * 0.5;
+          const fade = dissolveProgress < 0.5 
+            ? Math.sin(dissolveProgress * Math.PI) 
+            : Math.sin((1 - dissolveProgress) * Math.PI);
+          
+          px = sx + (tx - sx) * dissolveProgress + noise * fade;
+          py = sy + (ty - sy) * dissolveProgress + Math.cos(i * 0.1 + time) * 0.3 * fade;
+          pz = sz + (tz - sz) * dissolveProgress + Math.sin(i * 0.05 + time * 2) * fade;
+          break;
+        }
+        case 'spiral': {
+          const spiralAngle = easedProgress * Math.PI * 6 + i * 0.001;
+          const spiralRadius = Math.sin(easedProgress * Math.PI) * 2;
+          const spiralHeight = easedProgress * 2 - 1;
+          
+          px = sx + (tx - sx) * easedProgress + Math.cos(spiralAngle) * spiralRadius * 0.3;
+          py = sy + (ty - sy) * easedProgress + Math.sin(spiralAngle) * spiralRadius * 0.3;
+          pz = sz + (tz - sz) * easedProgress + spiralHeight * 0.5;
+          break;
+        }
+        case 'gravity': {
+          const fallPhase = easedProgress < 0.5 ? easedProgress * 2 : (1 - easedProgress) * 2;
+          const fallAmount = Math.pow(fallPhase, 2) * 3;
+          const bounceOffset = Math.abs(Math.sin(fallPhase * Math.PI * 3)) * (1 - fallPhase) * 0.5;
+          
+          if (easedProgress < 0.5) {
+            px = sx;
+            py = sy - fallAmount + bounceOffset;
+            pz = sz;
+          } else {
+            px = tx;
+            py = ty - fallAmount * (1 - easedProgress) * 2 + bounceOffset;
+            pz = tz;
+          }
+          break;
+        }
+        case 'vortex': {
+          const vortexAngle = easedProgress * Math.PI * 8;
+          const vortexRadius = (1 - easedProgress) * Math.sqrt(sx * sx + sy * sy) * 0.5;
+          const vortexZ = easedProgress * 4 - 2;
+          
+          px = sx + (tx - sx) * easedProgress + Math.cos(vortexAngle + Math.atan2(sy, sx)) * vortexRadius;
+          py = sy + (ty - sy) * easedProgress + Math.sin(vortexAngle + Math.atan2(sy, sx)) * vortexRadius;
+          pz = sz + (tz - sz) * easedProgress + vortexZ * Math.sin(easedProgress * Math.PI);
+          break;
+        }
+        case 'pixelate': {
+          const gridSize = 0.2;
+          const snapPhase = Math.sin(easedProgress * Math.PI);
+          const snappedSx = Math.round(sx / gridSize) * gridSize;
+          const snappedSy = Math.round(sy / gridSize) * gridSize;
+          const snappedTx = Math.round(tx / gridSize) * gridSize;
+          const snappedTy = Math.round(ty / gridSize) * gridSize;
+          
+          px = sx + (snappedSx - sx) * snapPhase + (tx - sx) * easedProgress + (snappedTx - tx) * (1 - snapPhase) * easedProgress;
+          py = sy + (snappedSy - sy) * snapPhase + (ty - sy) * easedProgress + (snappedTy - ty) * (1 - snapPhase) * easedProgress;
+          pz = sz + (tz - sz) * easedProgress;
           break;
         }
       }
