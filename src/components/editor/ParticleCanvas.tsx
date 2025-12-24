@@ -20,6 +20,9 @@ interface ParticleSystemProps {
   particleSize: number;
   isPlaying: boolean;
   depthEnabled: boolean;
+  colorContrast: number;
+  colorSaturation: number;
+  colorBrightness: number;
 }
 
 function loadImageData(url: string): Promise<ImageData> {
@@ -128,6 +131,9 @@ function ParticleSystem({
   particleSize,
   isPlaying,
   depthEnabled,
+  colorContrast,
+  colorSaturation,
+  colorBrightness,
 }: ParticleSystemProps) {
   const pointsRef = useRef<THREE.Points>(null);
   const animationRef = useRef({ time: 0 });
@@ -312,6 +318,63 @@ function ParticleSystem({
           pz = sz + (tz - sz) * easedProgress;
           break;
         }
+        case 'shatter': {
+          const shatterPhase = easedProgress < 0.5 ? easedProgress * 2 : (1 - easedProgress) * 2;
+          const shatterOffset = Math.sin(shatterPhase * Math.PI) * 2;
+          const angle = Math.atan2(sy, sx) + i * 0.001;
+          const randomDir = Math.sin(i * 12.9898) * 43758.5453 % 1;
+          
+          if (easedProgress < 0.5) {
+            px = sx + Math.cos(angle) * shatterOffset * randomDir;
+            py = sy + Math.sin(angle) * shatterOffset * randomDir - shatterPhase * 2;
+            pz = sz + (randomDir - 0.5) * shatterOffset;
+          } else {
+            px = tx + Math.cos(angle) * shatterOffset * randomDir * (1 - easedProgress);
+            py = ty + Math.sin(angle) * shatterOffset * randomDir * (1 - easedProgress);
+            pz = tz;
+          }
+          break;
+        }
+        case 'magnetic': {
+          const magnetPhase = Math.sin(easedProgress * Math.PI);
+          const centerDist = Math.sqrt(sx * sx + sy * sy);
+          const attractForce = magnetPhase * (centerDist > 1 ? -0.5 : 1.5);
+          
+          px = sx + (tx - sx) * easedProgress + (sx * attractForce * 0.3);
+          py = sy + (ty - sy) * easedProgress + (sy * attractForce * 0.3);
+          pz = sz + (tz - sz) * easedProgress + magnetPhase * 0.5;
+          break;
+        }
+        case 'ripple': {
+          const dist = Math.sqrt(sx * sx + sy * sy);
+          const rippleWave = Math.sin(dist * 5 - easedProgress * Math.PI * 4) * (1 - easedProgress);
+          
+          px = sx + (tx - sx) * easedProgress;
+          py = sy + (ty - sy) * easedProgress;
+          pz = sz + (tz - sz) * easedProgress + rippleWave * 0.5;
+          break;
+        }
+        case 'scatter': {
+          const scatterPhase = easedProgress < 0.3 ? easedProgress / 0.3 : easedProgress > 0.7 ? (1 - easedProgress) / 0.3 : 1;
+          const randomX = (Math.sin(i * 12.9898) * 43758.5453 % 1 - 0.5) * 4;
+          const randomY = (Math.cos(i * 78.233) * 43758.5453 % 1 - 0.5) * 4;
+          const randomZ = (Math.sin(i * 43.2323) * 43758.5453 % 1 - 0.5) * 2;
+          
+          px = sx + (tx - sx) * easedProgress + randomX * scatterPhase;
+          py = sy + (ty - sy) * easedProgress + randomY * scatterPhase;
+          pz = sz + (tz - sz) * easedProgress + randomZ * scatterPhase;
+          break;
+        }
+        case 'tornado': {
+          const tornadoAngle = easedProgress * Math.PI * 8 + i * 0.001;
+          const heightFactor = (i % 100) / 100;
+          const tornadoRadius = (1 - heightFactor) * 0.5 + Math.sin(easedProgress * Math.PI) * 0.5;
+          
+          px = sx + (tx - sx) * easedProgress + Math.cos(tornadoAngle) * tornadoRadius;
+          py = sy + (ty - sy) * easedProgress + (heightFactor - 0.5) * 2 * Math.sin(easedProgress * Math.PI);
+          pz = sz + (tz - sz) * easedProgress + Math.sin(tornadoAngle) * tornadoRadius;
+          break;
+        }
       }
 
       // Add subtle floating animation when playing
@@ -334,15 +397,39 @@ function ParticleSystem({
       positions[idx + 2] = pz;
 
       // Interpolate colors - use exact source colors when no transition
+      // Apply color enhancement (contrast, saturation, brightness)
+      let r: number, g: number, b: number;
+      
       if (transitionProgress === 0 || images.length <= 1) {
-        colors[idx] = sourceColors[idx] || 0.5;
-        colors[idx + 1] = sourceColors[idx + 1] || 0.5;
-        colors[idx + 2] = sourceColors[idx + 2] || 0.5;
+        r = sourceColors[idx] || 0.5;
+        g = sourceColors[idx + 1] || 0.5;
+        b = sourceColors[idx + 2] || 0.5;
       } else {
-        colors[idx] = sourceColors[idx] + ((targetColors[idx] || sourceColors[idx]) - sourceColors[idx]) * easedProgress;
-        colors[idx + 1] = sourceColors[idx + 1] + ((targetColors[idx + 1] || sourceColors[idx + 1]) - sourceColors[idx + 1]) * easedProgress;
-        colors[idx + 2] = sourceColors[idx + 2] + ((targetColors[idx + 2] || sourceColors[idx + 2]) - sourceColors[idx + 2]) * easedProgress;
+        r = sourceColors[idx] + ((targetColors[idx] || sourceColors[idx]) - sourceColors[idx]) * easedProgress;
+        g = sourceColors[idx + 1] + ((targetColors[idx + 1] || sourceColors[idx + 1]) - sourceColors[idx + 1]) * easedProgress;
+        b = sourceColors[idx + 2] + ((targetColors[idx + 2] || sourceColors[idx + 2]) - sourceColors[idx + 2]) * easedProgress;
       }
+      
+      // Apply brightness
+      r *= colorBrightness;
+      g *= colorBrightness;
+      b *= colorBrightness;
+      
+      // Apply contrast (centered around 0.5)
+      r = (r - 0.5) * colorContrast + 0.5;
+      g = (g - 0.5) * colorContrast + 0.5;
+      b = (b - 0.5) * colorContrast + 0.5;
+      
+      // Apply saturation
+      const gray = r * 0.299 + g * 0.587 + b * 0.114;
+      r = gray + (r - gray) * colorSaturation;
+      g = gray + (g - gray) * colorSaturation;
+      b = gray + (b - gray) * colorSaturation;
+      
+      // Clamp values
+      colors[idx] = Math.max(0, Math.min(1, r));
+      colors[idx + 1] = Math.max(0, Math.min(1, g));
+      colors[idx + 2] = Math.max(0, Math.min(1, b));
     }
 
     positionAttr.needsUpdate = true;
@@ -420,6 +507,9 @@ interface ParticleCanvasProps {
   backgroundColor?: string;
   autoRotate?: boolean;
   depthEnabled?: boolean;
+  colorContrast?: number;
+  colorSaturation?: number;
+  colorBrightness?: number;
 }
 
 export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasProps>(({
@@ -433,6 +523,9 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasPro
   backgroundColor = '#0a0a0f',
   autoRotate = false,
   depthEnabled = false,
+  colorContrast = 1.0,
+  colorSaturation = 1.0,
+  colorBrightness = 1.0,
 }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [imageDataStates, setImageDataStates] = useState<ImageDataState[]>([]);
@@ -519,6 +612,9 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasPro
           particleSize={particleSize}
           isPlaying={isPlaying}
           depthEnabled={depthEnabled}
+          colorContrast={colorContrast}
+          colorSaturation={colorSaturation}
+          colorBrightness={colorBrightness}
         />
       </Canvas>
     </div>

@@ -305,6 +305,9 @@ export default function ProjectEditor() {
                 backgroundColor={settings.backgroundColor}
                 autoRotate={settings.autoRotate}
                 depthEnabled={settings.depthEnabled}
+                colorContrast={settings.colorContrast}
+                colorSaturation={settings.colorSaturation}
+                colorBrightness={settings.colorBrightness}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-card/50">
