@@ -116,6 +116,37 @@ export function useProjectAssets(projectId: string | undefined) {
     return results;
   };
 
+  // Upload file to storage only (no asset record) - for background images
+  const uploadToStorage = async (file: File, userId: string): Promise<string | null> => {
+    if (!projectId) return null;
+    
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `bg-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${userId}/${projectId}/backgrounds/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('project-assets')
+        .upload(filePath, file);
+      
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('project-assets')
+        .getPublicUrl(filePath);
+      
+      return publicUrl;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Upload failed';
+      toast({
+        title: 'Upload failed',
+        description: message,
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
   const deleteAsset = async (assetId: string) => {
     const asset = assets.find(a => a.id === assetId);
     if (!asset) return;
@@ -174,6 +205,7 @@ export function useProjectAssets(projectId: string | undefined) {
     uploading,
     uploadAsset,
     uploadMultipleAssets,
+    uploadToStorage,
     deleteAsset,
     reorderAssets,
     refetch: fetchAssets,

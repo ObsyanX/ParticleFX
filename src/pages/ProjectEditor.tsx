@@ -55,7 +55,7 @@ export default function ProjectEditor() {
     uploadMultipleAssets, 
     deleteAsset,
     reorderAssets,
-    uploadAsset,
+    uploadToStorage,
   } = useProjectAssets(id);
   
   // Selection and playback state
@@ -175,9 +175,9 @@ export default function ProjectEditor() {
 
   const handleUploadBackgroundImage = useCallback(async (files: File[]): Promise<string | undefined> => {
     if (!user || files.length === 0) return undefined;
-    const asset = await uploadAsset(files[0], user.id);
-    return asset?.file_url;
-  }, [user, uploadAsset]);
+    const url = await uploadToStorage(files[0], user.id);
+    return url ?? undefined;
+  }, [user, uploadToStorage]);
 
   const handleSettingsChange = useCallback((newSettings: Partial<ParticleSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));
