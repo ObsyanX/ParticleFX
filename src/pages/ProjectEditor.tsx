@@ -316,6 +316,9 @@ export default function ProjectEditor() {
                 transitionStyle={settings.transitionStyle}
                 isPlaying={isPlaying}
                 backgroundColor={settings.backgroundColor}
+                backgroundType={settings.backgroundType}
+                backgroundGradient={settings.backgroundGradient}
+                backgroundImage={settings.backgroundImage}
                 autoRotate={settings.autoRotate}
                 depthEnabled={settings.depthEnabled}
                 colorContrast={settings.colorContrast}

@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { Asset } from '@/hooks/useProjectAssets';
-import { TransitionStyle } from './ParticleControls';
+import { TransitionStyle, BackgroundType } from './ParticleControls';
 
 interface ImageDataState {
   data: ImageData;
@@ -505,6 +505,9 @@ interface ParticleCanvasProps {
   transitionStyle?: TransitionStyle;
   isPlaying?: boolean;
   backgroundColor?: string;
+  backgroundType?: BackgroundType;
+  backgroundGradient?: string;
+  backgroundImage?: string;
   autoRotate?: boolean;
   depthEnabled?: boolean;
   colorContrast?: number;
@@ -521,6 +524,9 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasPro
   transitionStyle = 'morph',
   isPlaying = true,
   backgroundColor = '#0a0a0f',
+  backgroundType = 'color',
+  backgroundGradient = '',
+  backgroundImage = '',
   autoRotate = false,
   depthEnabled = false,
   colorContrast = 1.0,
@@ -581,42 +587,74 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasPro
     return { currentImageIndex: currentIndex, transitionProgress: progress };
   }, [assets.length, currentTime, duration]);
 
+  // Compute background style
+  const bgStyle = useMemo(() => {
+    if (backgroundType === 'image' && backgroundImage) {
+      return {
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      };
+    }
+    if (backgroundType === 'gradient' && backgroundGradient) {
+      return { background: backgroundGradient };
+    }
+    return { backgroundColor };
+  }, [backgroundType, backgroundColor, backgroundGradient, backgroundImage]);
+
+  // Use transparent canvas when we have gradient or image background
+  const useTransparentCanvas = backgroundType !== 'color';
+
   return (
-    <div ref={containerRef} className="w-full h-full rounded-lg overflow-hidden">
-      <Canvas
-        key={`canvas-${particleCount}`}
-        gl={{ 
-          antialias: true,
-          alpha: true,
-          powerPreference: 'high-performance',
-          preserveDrawingBuffer: true,
-        }}
-        dpr={[1, 2]}
-      >
-        <color attach="background" args={[backgroundColor]} />
-        <fog attach="fog" args={[backgroundColor, 8, 20]} />
-        
-        <PerspectiveCamera makeDefault fov={60} near={0.1} far={100} />
-        <CameraController autoRotate={autoRotate} />
+    <div ref={containerRef} className="w-full h-full rounded-lg overflow-hidden relative">
+      {/* Background layer */}
+      <div 
+        className="absolute inset-0 z-0" 
+        style={bgStyle}
+      />
+      
+      {/* Canvas layer */}
+      <div className="absolute inset-0 z-10">
+        <Canvas
+          key={`canvas-${particleCount}`}
+          gl={{ 
+            antialias: true,
+            alpha: true,
+            powerPreference: 'high-performance',
+            preserveDrawingBuffer: true,
+          }}
+          dpr={[1, 2]}
+          style={{ background: useTransparentCanvas ? 'transparent' : undefined }}
+        >
+          {!useTransparentCanvas && (
+            <>
+              <color attach="background" args={[backgroundColor]} />
+              <fog attach="fog" args={[backgroundColor, 8, 20]} />
+            </>
+          )}
+          
+          <PerspectiveCamera makeDefault fov={60} near={0.1} far={100} />
+          <CameraController autoRotate={autoRotate} />
 
-        <ambientLight intensity={0.3} />
-        <pointLight position={[10, 10, 10]} intensity={0.5} />
+          <ambientLight intensity={0.3} />
+          <pointLight position={[10, 10, 10]} intensity={0.5} />
 
-        <ParticleSystem
-          key={`particles-${particleCount}`}
-          images={imageDataStates}
-          currentImageIndex={currentImageIndex}
-          transitionProgress={transitionProgress}
-          transitionStyle={transitionStyle}
-          particleCount={particleCount}
-          particleSize={particleSize}
-          isPlaying={isPlaying}
-          depthEnabled={depthEnabled}
-          colorContrast={colorContrast}
-          colorSaturation={colorSaturation}
-          colorBrightness={colorBrightness}
-        />
-      </Canvas>
+          <ParticleSystem
+            key={`particles-${particleCount}`}
+            images={imageDataStates}
+            currentImageIndex={currentImageIndex}
+            transitionProgress={transitionProgress}
+            transitionStyle={transitionStyle}
+            particleCount={particleCount}
+            particleSize={particleSize}
+            isPlaying={isPlaying}
+            depthEnabled={depthEnabled}
+            colorContrast={colorContrast}
+            colorSaturation={colorSaturation}
+            colorBrightness={colorBrightness}
+          />
+        </Canvas>
+      </div>
     </div>
   );
 });
