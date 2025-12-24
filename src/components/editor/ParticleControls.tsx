@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { RotateCcw, Image, Palette, Upload, Loader2 } from 'lucide-react';
+import { RotateCcw, Image, Palette, Upload, Loader2, Flame, Droplets, Sparkles, Wind } from 'lucide-react';
 
 export type TransitionStyle = 'morph' | 'explode' | 'swirl' | 'wave' | 'depth' | 'dissolve' | 'spiral' | 'gravity' | 'vortex' | 'pixelate' | 'shatter' | 'magnetic' | 'ripple' | 'scatter' | 'tornado';
 export type BackgroundType = 'color' | 'gradient' | 'image';
@@ -56,6 +56,74 @@ interface ParticleControlsProps {
   onUploadBackgroundImage?: (files: File[]) => Promise<string | undefined>;
 }
 
+// Animation presets
+const presets: { name: string; icon: React.ReactNode; settings: Partial<ParticleSettings> }[] = [
+  {
+    name: 'Fire',
+    icon: <Flame className="h-4 w-4" />,
+    settings: {
+      transitionStyle: 'gravity',
+      colorContrast: 1.5,
+      colorSaturation: 1.8,
+      colorBrightness: 1.3,
+      backgroundColor: '#1a0a00',
+      backgroundType: 'gradient',
+      backgroundGradient: 'radial-gradient(ellipse at bottom, #4a1500 0%, #0a0000 70%)',
+      particleSize: 2.5,
+      autoRotate: false,
+      depthEnabled: true,
+    },
+  },
+  {
+    name: 'Water',
+    icon: <Droplets className="h-4 w-4" />,
+    settings: {
+      transitionStyle: 'ripple',
+      colorContrast: 1.2,
+      colorSaturation: 1.4,
+      colorBrightness: 1.1,
+      backgroundColor: '#001020',
+      backgroundType: 'gradient',
+      backgroundGradient: 'linear-gradient(180deg, #001525 0%, #00354a 50%, #001020 100%)',
+      particleSize: 1.8,
+      autoRotate: false,
+      depthEnabled: true,
+    },
+  },
+  {
+    name: 'Galaxy',
+    icon: <Sparkles className="h-4 w-4" />,
+    settings: {
+      transitionStyle: 'vortex',
+      colorContrast: 1.4,
+      colorSaturation: 1.6,
+      colorBrightness: 1.4,
+      backgroundColor: '#0a0015',
+      backgroundType: 'gradient',
+      backgroundGradient: 'radial-gradient(ellipse at center, #1a0030 0%, #0a0015 50%, #050010 100%)',
+      particleSize: 1.5,
+      autoRotate: true,
+      depthEnabled: true,
+    },
+  },
+  {
+    name: 'Aurora',
+    icon: <Wind className="h-4 w-4" />,
+    settings: {
+      transitionStyle: 'wave',
+      colorContrast: 1.3,
+      colorSaturation: 1.5,
+      colorBrightness: 1.2,
+      backgroundColor: '#001010',
+      backgroundType: 'gradient',
+      backgroundGradient: 'linear-gradient(180deg, #000510 0%, #001515 40%, #002020 100%)',
+      particleSize: 2.0,
+      autoRotate: false,
+      depthEnabled: false,
+    },
+  },
+];
+
 export function ParticleControls({ settings, onSettingsChange, onReset, onUploadBackgroundImage }: ParticleControlsProps) {
   const [uploadingBg, setUploadingBg] = useState(false);
   const bgFileInputRef = useRef<HTMLInputElement>(null);
@@ -81,6 +149,27 @@ export function ParticleControls({ settings, onSettingsChange, onReset, onUpload
   }, [onUploadBackgroundImage, onSettingsChange]);
   return (
     <div className="space-y-6">
+      {/* Animation Presets */}
+      <div>
+        <h3 className="text-sm font-medium mb-3">Presets</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {presets.map((preset) => (
+            <Button
+              key={preset.name}
+              variant="outline"
+              size="sm"
+              className="h-10 justify-start gap-2"
+              onClick={() => onSettingsChange(preset.settings)}
+            >
+              {preset.icon}
+              {preset.name}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <Separator className="bg-border/50" />
+
       {/* Reset Button */}
       {onReset && (
         <Button 
