@@ -2,14 +2,15 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Sparkles, Menu, Moon, Sun } from 'lucide-react';
+import { Sparkles, Menu, Moon, Sun, LogOut, LayoutDashboard } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const navLinks = [
   { label: 'Home', href: '#hero' },
   { label: 'Features', href: '#features' },
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Pricing', href: '#pricing' },
-  { label: 'Docs', href: '#docs' },
+  { label: 'Docs', href: '/docs', isRoute: true },
   { label: 'Contact', href: '#contact' },
 ];
 
@@ -23,13 +24,16 @@ export function Navbar({ theme, onThemeToggle }: NavbarProps) {
   const [activeSection, setActiveSection] = useState('hero');
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
+  const { user, signOut, loading } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
 
       // Update active section based on scroll position
-      const sections = navLinks.map(link => link.href.replace('#', ''));
+      const sections = navLinks
+        .filter(link => !link.isRoute)
+        .map(link => link.href.replace('#', ''));
       for (const section of sections.reverse()) {
         const el = document.getElementById(section);
         if (el && window.scrollY >= el.offsetTop - 100) {
@@ -43,12 +47,21 @@ export function Navbar({ theme, onThemeToggle }: NavbarProps) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const scrollToSection = (href: string) => {
-    const id = href.replace('#', '');
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+  const handleNavClick = (link: typeof navLinks[0]) => {
+    if (link.isRoute) {
+      navigate(link.href);
+    } else {
+      const id = link.href.replace('#', '');
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
     }
+    setMobileOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
     setMobileOpen(false);
   };
 
@@ -77,9 +90,9 @@ export function Navbar({ theme, onThemeToggle }: NavbarProps) {
           {navLinks.map((link) => (
             <button
               key={link.href}
-              onClick={() => scrollToSection(link.href)}
+              onClick={() => handleNavClick(link)}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                activeSection === link.href.replace('#', '')
+                !link.isRoute && activeSection === link.href.replace('#', '')
                   ? 'text-primary bg-primary/10'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               }`}
@@ -108,19 +121,44 @@ export function Navbar({ theme, onThemeToggle }: NavbarProps) {
 
           {/* Auth buttons - Desktop */}
           <div className="hidden md:flex items-center gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/auth')}
-              className="text-sm"
-            >
-              Login
-            </Button>
-            <Button
-              onClick={() => navigate('/auth')}
-              className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground glow-primary"
-            >
-              Sign Up Free
-            </Button>
+            {loading ? (
+              <div className="h-9 w-24 bg-muted/50 animate-pulse rounded-lg" />
+            ) : user ? (
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate('/dashboard')}
+                  className="text-sm gap-2"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboard
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleSignOut}
+                  className="text-sm gap-2"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate('/auth')}
+                  className="text-sm"
+                >
+                  Login
+                </Button>
+                <Button
+                  onClick={() => navigate('/auth')}
+                  className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground glow-primary"
+                >
+                  Sign Up Free
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile menu */}
@@ -136,9 +174,9 @@ export function Navbar({ theme, onThemeToggle }: NavbarProps) {
                   {navLinks.map((link) => (
                     <button
                       key={link.href}
-                      onClick={() => scrollToSection(link.href)}
+                      onClick={() => handleNavClick(link)}
                       className={`px-4 py-3 text-left text-sm font-medium rounded-lg transition-all ${
-                        activeSection === link.href.replace('#', '')
+                        !link.isRoute && activeSection === link.href.replace('#', '')
                           ? 'text-primary bg-primary/10'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                       }`}
@@ -148,24 +186,52 @@ export function Navbar({ theme, onThemeToggle }: NavbarProps) {
                   ))}
                 </div>
                 <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      navigate('/auth');
-                      setMobileOpen(false);
-                    }}
-                  >
-                    Login
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      navigate('/auth');
-                      setMobileOpen(false);
-                    }}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                  >
-                    Sign Up Free
-                  </Button>
+                  {loading ? (
+                    <div className="h-10 bg-muted/50 animate-pulse rounded-lg" />
+                  ) : user ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          navigate('/dashboard');
+                          setMobileOpen(false);
+                        }}
+                        className="gap-2"
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        Dashboard
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={handleSignOut}
+                        className="gap-2"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          navigate('/auth');
+                          setMobileOpen(false);
+                        }}
+                      >
+                        Login
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          navigate('/auth');
+                          setMobileOpen(false);
+                        }}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                      >
+                        Sign Up Free
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </SheetContent>

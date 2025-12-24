@@ -319,6 +319,8 @@ export default function ProjectEditor() {
                 backgroundType={settings.backgroundType}
                 backgroundGradient={settings.backgroundGradient}
                 backgroundImage={settings.backgroundImage}
+                backgroundOpacity={settings.backgroundOpacity}
+                backgroundBlur={settings.backgroundBlur}
                 autoRotate={settings.autoRotate}
                 depthEnabled={settings.depthEnabled}
                 colorContrast={settings.colorContrast}

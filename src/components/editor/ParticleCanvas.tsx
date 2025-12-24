@@ -508,6 +508,8 @@ interface ParticleCanvasProps {
   backgroundType?: BackgroundType;
   backgroundGradient?: string;
   backgroundImage?: string;
+  backgroundOpacity?: number;
+  backgroundBlur?: number;
   autoRotate?: boolean;
   depthEnabled?: boolean;
   colorContrast?: number;
@@ -527,6 +529,8 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasPro
   backgroundType = 'color',
   backgroundGradient = '',
   backgroundImage = '',
+  backgroundOpacity = 1.0,
+  backgroundBlur = 0,
   autoRotate = false,
   depthEnabled = false,
   colorContrast = 1.0,
@@ -589,18 +593,24 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasPro
 
   // Compute background style
   const bgStyle = useMemo(() => {
+    const baseStyle: React.CSSProperties = {
+      opacity: backgroundOpacity,
+      filter: backgroundBlur > 0 ? `blur(${backgroundBlur}px)` : undefined,
+    };
+
     if (backgroundType === 'image' && backgroundImage) {
       return {
+        ...baseStyle,
         backgroundImage: `url(${backgroundImage})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       };
     }
     if (backgroundType === 'gradient' && backgroundGradient) {
-      return { background: backgroundGradient };
+      return { ...baseStyle, background: backgroundGradient };
     }
-    return { backgroundColor };
-  }, [backgroundType, backgroundColor, backgroundGradient, backgroundImage]);
+    return { ...baseStyle, backgroundColor };
+  }, [backgroundType, backgroundColor, backgroundGradient, backgroundImage, backgroundOpacity, backgroundBlur]);
 
   // Use transparent canvas when we have gradient or image background
   const useTransparentCanvas = backgroundType !== 'color';
@@ -612,6 +622,14 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasPro
         className="absolute inset-0 z-0" 
         style={bgStyle}
       />
+      
+      {/* Overlay for better particle visibility when using image */}
+      {backgroundType === 'image' && backgroundImage && (
+        <div 
+          className="absolute inset-0 z-[1] bg-black/30"
+          style={{ opacity: 1 - backgroundOpacity }}
+        />
+      )}
       
       {/* Canvas layer */}
       <div className="absolute inset-0 z-10">
