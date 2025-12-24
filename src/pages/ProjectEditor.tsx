@@ -1,19 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useProjectAssets } from '@/hooks/useProjectAssets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { AssetGallery } from '@/components/editor/AssetGallery';
+import { ParticleCanvas } from '@/components/editor/ParticleCanvas';
+import { ParticleControls } from '@/components/editor/ParticleControls';
+import { Timeline } from '@/components/editor/Timeline';
 import { 
   ArrowLeft, 
   Loader2, 
   Sparkles, 
-  Upload,
-  Play,
   Settings,
   Download,
-  Save
+  Save,
+  PanelLeftClose,
+  PanelRightClose,
+  PanelLeft,
+  PanelRight
 } from 'lucide-react';
 
 interface Project {
@@ -23,16 +30,57 @@ interface Project {
   status: string;
 }
 
+interface ParticleSettings {
+  particleCount: number;
+  particleSize: number;
+  transitionStyle: string;
+  duration: number;
+  fps: number;
+  backgroundColor: string;
+}
+
+const defaultSettings: ParticleSettings = {
+  particleCount: 50000,
+  particleSize: 2,
+  transitionStyle: 'morph',
+  duration: 10,
+  fps: 60,
+  backgroundColor: '#0a0a0f',
+};
+
 export default function ProjectEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   
+  // Project state
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [projectName, setProjectName] = useState('');
+  
+  // Panel visibility
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  
+  // Assets
+  const { 
+    assets, 
+    loading: assetsLoading, 
+    uploading, 
+    uploadMultipleAssets, 
+    deleteAsset 
+  } = useProjectAssets(id);
+  
+  // Selection and playback state
+  const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [currentTime, setCurrentTime] = useState(0);
+  
+  // Particle settings
+  const [settings, setSettings] = useState<ParticleSettings>(defaultSettings);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -47,6 +95,27 @@ export default function ProjectEditor() {
       fetchProject();
     }
   }, [user, id]);
+
+  // Auto-select first asset
+  useEffect(() => {
+    if (assets.length > 0 && !selectedAssetId) {
+      setSelectedAssetId(assets[0].id);
+    }
+  }, [assets, selectedAssetId]);
+
+  // Playback timer
+  useEffect(() => {
+    if (!isPlaying) return;
+    
+    const interval = setInterval(() => {
+      setCurrentTime(prev => {
+        const next = prev + 0.016; // ~60fps
+        return next >= settings.duration ? 0 : next;
+      });
+    }, 16);
+    
+    return () => clearInterval(interval);
+  }, [isPlaying, settings.duration]);
 
   const fetchProject = async () => {
     setLoading(true);
@@ -98,6 +167,24 @@ export default function ProjectEditor() {
     setSaving(false);
   };
 
+  const handleUpload = useCallback(async (files: File[]) => {
+    if (!user) return;
+    await uploadMultipleAssets(files, user.id);
+  }, [user, uploadMultipleAssets]);
+
+  const handleAssetSelect = useCallback((assetId: string) => {
+    setSelectedAssetId(assetId);
+    setSelectedAssets(prev => 
+      prev.includes(assetId) 
+        ? prev.filter(id => id !== assetId)
+        : [...prev, assetId]
+    );
+  }, []);
+
+  const handleSettingsChange = useCallback((newSettings: Partial<ParticleSettings>) => {
+    setSettings(prev => ({ ...prev, ...newSettings }));
+  }, []);
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -111,51 +198,68 @@ export default function ProjectEditor() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-4">
+      <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm flex-shrink-0 z-50">
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-3">
             <Button 
               variant="ghost" 
               size="icon"
+              className="h-8 w-8"
               onClick={() => navigate('/dashboard')}
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
             
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-primary" />
+              <div className="h-7 w-7 rounded-lg bg-primary/20 flex items-center justify-center">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
               </div>
               <Input
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                className="h-8 w-48 bg-transparent border-none text-base font-medium focus-visible:ring-0 focus-visible:ring-offset-0 px-1"
+                className="h-7 w-40 bg-transparent border-none text-sm font-medium focus-visible:ring-0 focus-visible:ring-offset-0 px-1"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setLeftPanelOpen(!leftPanelOpen)}
+            >
+              {leftPanelOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
             </Button>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setRightPanelOpen(!rightPanelOpen)}
+            >
+              {rightPanelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
+            </Button>
+            
+            <div className="w-px h-6 bg-border/50 mx-1" />
+            
             <Button 
               variant="outline" 
               size="sm"
+              className="h-8"
               onClick={handleSave}
               disabled={saving}
             >
               {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
               ) : (
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="h-3.5 w-3.5 mr-1.5" />
               )}
               Save
             </Button>
-            <Button size="sm" className="bg-primary text-primary-foreground">
-              <Download className="h-4 w-4 mr-2" />
+            <Button size="sm" className="h-8 bg-primary text-primary-foreground">
+              <Download className="h-3.5 w-3.5 mr-1.5" />
               Export
             </Button>
           </div>
@@ -163,113 +267,76 @@ export default function ProjectEditor() {
       </header>
 
       {/* Main content area */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-h-0">
         {/* Left sidebar - Assets */}
-        <aside className="w-64 border-r border-border/50 bg-card/30 p-4 hidden lg:block">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium">Assets</h3>
-            <Button variant="ghost" size="icon" className="h-7 w-7">
-              <Upload className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          <div className="border-2 border-dashed border-border/50 rounded-lg p-8 text-center">
-            <Upload className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">
-              Drop images here
-            </p>
-            <p className="text-xs text-muted-foreground/70 mt-1">
-              or click to upload
-            </p>
-          </div>
-        </aside>
+        {leftPanelOpen && (
+          <aside className="w-64 border-r border-border/50 bg-card/30 p-4 flex-shrink-0 flex flex-col">
+            <h3 className="text-sm font-medium mb-4">Assets</h3>
+            <div className="flex-1 min-h-0">
+              <AssetGallery
+                assets={assets}
+                loading={assetsLoading}
+                uploading={uploading}
+                selectedAssets={selectedAssets}
+                onUpload={handleUpload}
+                onSelect={handleAssetSelect}
+                onDelete={deleteAsset}
+              />
+            </div>
+          </aside>
+        )}
 
         {/* Canvas area */}
-        <main className="flex-1 flex items-center justify-center bg-muted/20 p-8">
-          <div className="aspect-video w-full max-w-4xl rounded-2xl bg-card/50 border border-border/50 overflow-hidden shadow-xl">
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="text-center">
-                <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 animate-pulse-glow">
-                  <Sparkles className="h-8 w-8 text-primary" />
+        <main className="flex-1 flex items-center justify-center bg-muted/10 p-4 min-w-0">
+          <div className="w-full h-full max-w-5xl max-h-[70vh] rounded-xl overflow-hidden border border-border/50 shadow-xl">
+            {assets.length > 0 ? (
+              <ParticleCanvas
+                assets={assets}
+                selectedAssetId={selectedAssetId}
+                particleCount={settings.particleCount}
+                particleSize={settings.particleSize}
+                isPlaying={isPlaying}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-card/50">
+                <div className="text-center">
+                  <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 animate-pulse-glow">
+                    <Sparkles className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">Upload images to begin</h3>
+                  <p className="text-sm text-muted-foreground max-w-xs">
+                    Add images from the left panel to create your particle animation
+                  </p>
                 </div>
-                <h3 className="text-lg font-medium mb-2">Upload images to begin</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Add at least one image to create your particle animation
-                </p>
-                <Button className="bg-primary text-primary-foreground">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Images
-                </Button>
               </div>
-            </div>
+            )}
           </div>
         </main>
 
         {/* Right sidebar - Controls */}
-        <aside className="w-72 border-l border-border/50 bg-card/30 p-4 hidden xl:block">
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-sm font-medium mb-3">Particle Settings</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-muted-foreground">Count</label>
-                  <Input type="number" defaultValue="50000" className="h-8 mt-1" />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Size</label>
-                  <Input type="number" defaultValue="2" step="0.1" className="h-8 mt-1" />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-medium mb-3">Transition</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {['Morph', 'Explode', 'Swirl', 'Wave'].map((style) => (
-                  <Button 
-                    key={style} 
-                    variant="outline" 
-                    size="sm"
-                    className="text-xs"
-                  >
-                    {style}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-medium mb-3">Timeline</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-muted-foreground">Duration (seconds)</label>
-                  <Input type="number" defaultValue="10" className="h-8 mt-1" />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">FPS</label>
-                  <Input type="number" defaultValue="60" className="h-8 mt-1" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
+        {rightPanelOpen && (
+          <aside className="w-72 border-l border-border/50 bg-card/30 p-4 flex-shrink-0 overflow-y-auto">
+            <h3 className="text-sm font-medium mb-4">Settings</h3>
+            <ParticleControls
+              settings={settings}
+              onSettingsChange={handleSettingsChange}
+            />
+          </aside>
+        )}
       </div>
 
       {/* Bottom timeline */}
-      <div className="h-24 border-t border-border/50 bg-card/50 px-4 py-3">
-        <div className="flex items-center gap-4 h-full">
-          <Button variant="ghost" size="icon" className="h-10 w-10">
-            <Play className="h-5 w-5" />
-          </Button>
-          
-          <div className="flex-1 h-12 bg-muted/50 rounded-lg border border-border/50">
-            {/* Timeline will go here */}
-          </div>
-          
-          <div className="text-sm text-muted-foreground">
-            0:00 / 0:10
-          </div>
-        </div>
+      <div className="h-28 border-t border-border/50 bg-card/50 px-4 py-3 flex-shrink-0">
+        <Timeline
+          assets={assets}
+          duration={settings.duration}
+          currentTime={currentTime}
+          isPlaying={isPlaying}
+          onTimeChange={setCurrentTime}
+          onPlayPause={() => setIsPlaying(!isPlaying)}
+          onAssetSelect={(id) => setSelectedAssetId(id)}
+          selectedAssetId={selectedAssetId}
+        />
       </div>
     </div>
   );
