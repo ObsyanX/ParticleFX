@@ -1,73 +1,183 @@
-# Welcome to your Lovable project
+# ✨ ParticleFX  
+### Turn Static Images into Cinematic 3D Particle Videos
 
-## Project info
+🚀 **Live App:** https://particlefx.lovable.app  
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+ParticleFX is a modern web platform that transforms static images into **real-time 3D particle animations** and **cinematic video transitions** — directly in the browser, with no 3D experience required.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## 🌌 What is ParticleFX?
 
-**Use Lovable**
+**ParticleFX** is a creative SaaS platform for **creators, developers, marketers, and designers** who want to bring images to life using **WebGL-powered particle systems** and **smooth 3D transitions**.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+It combines:
+- Real-time WebGL rendering  
+- Particle-based morphing effects  
+- Image-to-video animation workflows  
+- A scalable, startup-ready architecture  
 
-Changes made via Lovable will be committed automatically to this repo.
+All wrapped in a **modern, glassmorphic UI**.
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🎯 Core Features
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 🔴 Live 3D WebGL Preview
+- Real-time rendering using Three.js  
+- Instant feedback while editing  
+- Optimized particle counts for smooth performance  
 
-Follow these steps:
+### 🖼️ Multi-Image Particle Transitions
+- Seamlessly morph between multiple images  
+- Pixel-to-particle conversion  
+- Depth-based 3D movement and camera motion  
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### ✨ Advanced Particle Effects
+- Explode  
+- Morph  
+- Swirl  
+- Wave  
+- Depth Push (Z-axis motion)  
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 🎞️ Timeline-Based Sequencing
+- Visual sequence editor  
+- Adjustable transition durations  
+- Smooth easing functions  
 
-# Step 3: Install the necessary dependencies.
-npm i
+### 👤 User Accounts & Projects
+- Secure authentication  
+- Saved projects and assets  
+- Dashboard-based workflow  
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+### 💸 Monetization-Ready
+- Subscription plans (Free / Pro / Studio)  
+- Usage tracking  
+- Watermarking for free tier  
+
+### 📦 Video Export (MVP)
+- Browser-based video export  
+- WebM output using MediaRecorder  
+- Production-grade backend rendering planned  
+
+---
+
+## 🧠 How It Works
+
+```
+Upload Images
+     ↓
+Convert Pixels → Particles
+     ↓
+Animate Transitions in 3D
+     ↓
+Preview Live in Browser
+     ↓
+Export Video / Save Project
 ```
 
-**Edit a file directly in GitHub**
+What you preview is rendered **live using WebGL**, not pre-recorded demos.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## 🎨 Visual & UX Design
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+ParticleFX follows a **modern creative-tool aesthetic**:
 
-## What technologies are used for this project?
+- Glassmorphism UI (blur + translucency)  
+- Dark mode by default (light mode toggle)  
+- Smooth page transitions  
+- Micro-interactions and hover effects  
+- Accessible navigation and keyboard support  
 
-This project is built with:
+### 3D Visuals
+- Spline-powered 3D hero animations  
+- Floating particle fields  
+- Subtle camera motion and depth cues  
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+---
 
-## How can I deploy this project?
+## 🛠️ Tech Stack
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Frontend
+- React  
+- Three.js  
+- GSAP  
+- Tailwind CSS  
+- Spline (3D embeds)  
 
-## Can I connect a custom domain to my Lovable project?
+### Backend / Platform
+- Lovable Cloud  
+- Supabase Auth  
+- PostgreSQL  
+- Supabase Storage  
 
-Yes, you can!
+### Rendering (Current & Future)
+- Browser-based WebGL preview  
+- MediaRecorder (MVP export)  
+- Planned: Headless Three.js + FFmpeg + GPU workers  
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+---
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 🧱 Architecture Philosophy
+
+ParticleFX is built with a **hybrid rendering architecture**:
+
+- Fast browser previews today  
+- Config-driven animation system  
+- Plug-and-play backend rendering later  
+- Clean separation of UI, animation logic, and rendering engine  
+
+This enables:
+- Rapid iteration  
+- Scalability  
+- Production readiness  
+
+---
+
+## 📈 Roadmap
+
+### ✅ MVP (Current)
+- Live 3D preview  
+- Multi-image transitions  
+- Authentication & projects  
+- Browser export  
+- Monetization hooks  
+
+### 🔜 Next
+- Server-side rendering  
+- Higher-quality exports  
+- AI depth estimation  
+- Code export (Three.js / React)  
+- Team workspaces  
+
+---
+
+## 🌍 Who Is This For?
+
+- Content creators  
+- Social media marketers  
+- Developers & creative coders  
+- Startups & agencies  
+- Hackathons & demos  
+
+---
+
+## 🚀 Try It Now
+
+👉 **Live App:** https://particlefx.lovable.app  
+
+No installation. No setup.  
+Just upload images and start creating.
+
+---
+
+## 📄 License
+
+This project is under active development.  
+Licensing details will be updated soon.
+
+---
+
+✨ **Bring your images to life in 3D**  
+Built with WebGL, particles, and a passion for creative technology.
