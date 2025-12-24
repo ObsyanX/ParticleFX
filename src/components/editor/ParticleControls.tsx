@@ -22,6 +22,8 @@ export interface ParticleSettings {
   backgroundType: BackgroundType;
   backgroundGradient: string;
   backgroundImage: string;
+  backgroundOpacity: number;
+  backgroundBlur: number;
   autoRotate: boolean;
   depthEnabled: boolean;
   loop: boolean;
@@ -41,6 +43,8 @@ export const defaultSettings: ParticleSettings = {
   backgroundType: 'color',
   backgroundGradient: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%)',
   backgroundImage: '',
+  backgroundOpacity: 1.0,
+  backgroundBlur: 0,
   autoRotate: false,
   depthEnabled: false,
   loop: true,
@@ -559,8 +563,45 @@ export function ParticleControls({ settings, onSettingsChange, onReset, onUpload
                   style={{ backgroundImage: `url(${settings.backgroundImage})` }}
                 />
               )}
+              
+              {/* Opacity slider */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs text-muted-foreground">Opacity</Label>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {Math.round(settings.backgroundOpacity * 100)}%
+                  </span>
+                </div>
+                <Slider
+                  value={[settings.backgroundOpacity]}
+                  onValueChange={([value]) => onSettingsChange({ backgroundOpacity: value })}
+                  min={0.1}
+                  max={1}
+                  step={0.05}
+                  className="w-full"
+                />
+              </div>
+              
+              {/* Blur slider */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs text-muted-foreground">Blur</Label>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {settings.backgroundBlur}px
+                  </span>
+                </div>
+                <Slider
+                  value={[settings.backgroundBlur]}
+                  onValueChange={([value]) => onSettingsChange({ backgroundBlur: value })}
+                  min={0}
+                  max={20}
+                  step={1}
+                  className="w-full"
+                />
+              </div>
+              
               <p className="text-[10px] text-muted-foreground">
-                Upload an image or paste a URL
+                Upload an image or paste a URL. Adjust opacity and blur for better particle visibility.
               </p>
             </div>
           )}

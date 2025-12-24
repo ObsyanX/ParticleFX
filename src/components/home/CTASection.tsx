@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Sparkles } from 'lucide-react';
+import { ScrollReveal } from '@/hooks/useScrollReveal';
 
 export function CTASection() {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ export function CTASection() {
       </div>
 
       <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-4xl mx-auto text-center">
+        <ScrollReveal className="max-w-4xl mx-auto text-center">
           {/* Icon */}
           <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-primary/20 mb-8 animate-pulse-glow">
             <Sparkles className="h-8 w-8 text-primary" />
@@ -69,7 +70,7 @@ export function CTASection() {
               Cancel anytime
             </div>
           </div>
-        </div>
+        </ScrollReveal>
       </div>
     </section>
   );

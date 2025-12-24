@@ -2,6 +2,7 @@ import { useState, useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Button } from '@/components/ui/button';
 import { Play, Pause } from 'lucide-react';
+import { ScrollReveal } from '@/hooks/useScrollReveal';
 import * as THREE from 'three';
 
 function MorphingParticles({ isPlaying }: { isPlaying: boolean }) {
@@ -88,7 +89,7 @@ export function PreviewSection() {
     <section id="preview" className="py-24 relative">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-12">
+        <ScrollReveal className="text-center max-w-3xl mx-auto mb-12">
           <span className="text-primary font-medium text-sm uppercase tracking-wider">Live Preview</span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mt-4 mb-6">
             See the Magic{' '}
@@ -97,10 +98,10 @@ export function PreviewSection() {
           <p className="text-lg text-muted-foreground">
             What you see is rendered live in the browser using WebGL. No pre-recorded videos.
           </p>
-        </div>
+        </ScrollReveal>
 
         {/* Preview window */}
-        <div className="relative max-w-5xl mx-auto">
+        <ScrollReveal delay={0.2} className="relative max-w-5xl mx-auto">
           {/* Mock browser chrome */}
           <div className="rounded-t-xl bg-card border border-border/50 border-b-0 p-3 flex items-center gap-2">
             <div className="flex gap-1.5">
@@ -153,7 +154,7 @@ export function PreviewSection() {
 
           {/* Glow effect */}
           <div className="absolute inset-0 -z-10 rounded-xl bg-primary/20 blur-3xl opacity-30" />
-        </div>
+        </ScrollReveal>
       </div>
     </section>
   );
