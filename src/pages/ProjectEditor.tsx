@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,15 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { AssetGallery } from '@/components/editor/AssetGallery';
-import { ParticleCanvas } from '@/components/editor/ParticleCanvas';
-import { ParticleControls } from '@/components/editor/ParticleControls';
+import { ParticleCanvas, ParticleCanvasHandle } from '@/components/editor/ParticleCanvas';
+import { ParticleControls, ParticleSettings, defaultSettings } from '@/components/editor/ParticleControls';
 import { Timeline } from '@/components/editor/Timeline';
+import { VideoExport } from '@/components/editor/VideoExport';
 import { 
   ArrowLeft, 
   Loader2, 
   Sparkles, 
-  Settings,
-  Download,
   Save,
   PanelLeftClose,
   PanelRightClose,
@@ -30,29 +29,12 @@ interface Project {
   status: string;
 }
 
-interface ParticleSettings {
-  particleCount: number;
-  particleSize: number;
-  transitionStyle: string;
-  duration: number;
-  fps: number;
-  backgroundColor: string;
-}
-
-const defaultSettings: ParticleSettings = {
-  particleCount: 50000,
-  particleSize: 2,
-  transitionStyle: 'morph',
-  duration: 10,
-  fps: 60,
-  backgroundColor: '#0a0a0f',
-};
-
 export default function ProjectEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const canvasRef = useRef<ParticleCanvasHandle>(null);
   
   // Project state
   const [project, setProject] = useState<Project | null>(null);
@@ -185,6 +167,14 @@ export default function ProjectEditor() {
     setSettings(prev => ({ ...prev, ...newSettings }));
   }, []);
 
+  const handleResetSettings = useCallback(() => {
+    setSettings(defaultSettings);
+    toast({
+      title: 'Settings reset',
+      description: 'All settings restored to defaults.',
+    });
+  }, [toast]);
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -258,10 +248,13 @@ export default function ProjectEditor() {
               )}
               Save
             </Button>
-            <Button size="sm" className="h-8 bg-primary text-primary-foreground">
-              <Download className="h-3.5 w-3.5 mr-1.5" />
-              Export
-            </Button>
+            
+            <VideoExport
+              canvasRef={canvasRef}
+              duration={settings.duration}
+              fps={settings.fps}
+              projectName={projectName}
+            />
           </div>
         </div>
       </header>
@@ -291,11 +284,15 @@ export default function ProjectEditor() {
           <div className="w-full h-full max-w-5xl max-h-[70vh] rounded-xl overflow-hidden border border-border/50 shadow-xl">
             {assets.length > 0 ? (
               <ParticleCanvas
+                ref={canvasRef}
                 assets={assets}
-                selectedAssetId={selectedAssetId}
+                currentTime={currentTime}
+                duration={settings.duration}
                 particleCount={settings.particleCount}
                 particleSize={settings.particleSize}
+                transitionStyle={settings.transitionStyle}
                 isPlaying={isPlaying}
+                backgroundColor={settings.backgroundColor}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-card/50">
@@ -320,6 +317,7 @@ export default function ProjectEditor() {
             <ParticleControls
               settings={settings}
               onSettingsChange={handleSettingsChange}
+              onReset={handleResetSettings}
             />
           </aside>
         )}
