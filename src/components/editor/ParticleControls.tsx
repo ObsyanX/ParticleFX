@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { RotateCcw, Image, Palette, Upload, Loader2, Flame, Droplets, Sparkles, Wind } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RotateCcw, Image, Palette, Upload, Loader2, Flame, Droplets, Sparkles, Wind, Wand2, Settings2 } from 'lucide-react';
+import { ImageAnimationControls, ImageAnimationSettings, defaultImageAnimationSettings } from './ImageAnimationControls';
 
 export type TransitionStyle = 'morph' | 'explode' | 'swirl' | 'wave' | 'depth' | 'dissolve' | 'spiral' | 'gravity' | 'vortex' | 'pixelate' | 'shatter' | 'magnetic' | 'ripple' | 'scatter' | 'tornado';
 export type BackgroundType = 'color' | 'gradient' | 'image';
@@ -30,6 +32,7 @@ export interface ParticleSettings {
   colorContrast: number;
   colorSaturation: number;
   colorBrightness: number;
+  imageAnimation: ImageAnimationSettings;
 }
 
 export const defaultSettings: ParticleSettings = {
@@ -51,6 +54,7 @@ export const defaultSettings: ParticleSettings = {
   colorContrast: 1.0,
   colorSaturation: 1.0,
   colorBrightness: 1.0,
+  imageAnimation: defaultImageAnimationSettings,
 };
 
 interface ParticleControlsProps {
@@ -151,10 +155,30 @@ export function ParticleControls({ settings, onSettingsChange, onReset, onUpload
     
     e.target.value = '';
   }, [onUploadBackgroundImage, onSettingsChange]);
+
+  const handleImageAnimationChange = useCallback((newSettings: Partial<ImageAnimationSettings>) => {
+    onSettingsChange({ 
+      imageAnimation: { ...settings.imageAnimation, ...newSettings } 
+    });
+  }, [settings.imageAnimation, onSettingsChange]);
+
   return (
-    <div className="space-y-6">
-      {/* Animation Presets */}
-      <div>
+    <Tabs defaultValue="particles" className="w-full">
+      <TabsList className="w-full grid grid-cols-2 mb-4">
+        <TabsTrigger value="particles" className="text-xs gap-1.5">
+          <Settings2 className="h-3.5 w-3.5" />
+          Particles
+        </TabsTrigger>
+        <TabsTrigger value="animation" className="text-xs gap-1.5">
+          <Wand2 className="h-3.5 w-3.5" />
+          Image Animation
+        </TabsTrigger>
+      </TabsList>
+      
+      <TabsContent value="particles" className="mt-0">
+        <div className="space-y-6">
+          {/* Animation Presets */}
+          <div>
         <h3 className="text-sm font-medium mb-3">Presets</h3>
         <div className="grid grid-cols-2 gap-2">
           {presets.map((preset) => (
@@ -608,5 +632,14 @@ export function ParticleControls({ settings, onSettingsChange, onReset, onUpload
         </div>
       </div>
     </div>
+      </TabsContent>
+      
+      <TabsContent value="animation" className="mt-0">
+        <ImageAnimationControls
+          settings={settings.imageAnimation}
+          onSettingsChange={handleImageAnimationChange}
+        />
+      </TabsContent>
+    </Tabs>
   );
 }
