@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjectAssets } from '@/hooks/useProjectAssets';
+import { useHistory } from '@/hooks/useHistory';
+import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -12,6 +14,8 @@ import { ParticleControls, ParticleSettings, defaultSettings } from '@/component
 import { Timeline } from '@/components/editor/Timeline';
 import { VideoExport } from '@/components/editor/VideoExport';
 import { CodeExport } from '@/components/editor/CodeExport';
+import { TemplateManager } from '@/components/editor/TemplateManager';
+import { KeyboardShortcutsHelp } from '@/components/editor/KeyboardShortcutsHelp';
 import {
   ArrowLeft, 
   Loader2, 
@@ -20,7 +24,9 @@ import {
   PanelLeftClose,
   PanelRightClose,
   PanelLeft,
-  PanelRight
+  PanelRight,
+  Undo2,
+  Redo2
 } from 'lucide-react';
 
 interface Project {
@@ -64,8 +70,16 @@ export default function ProjectEditor() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   
-  // Particle settings
-  const [settings, setSettings] = useState<ParticleSettings>(defaultSettings);
+  // Particle settings with history for undo/redo
+  const {
+    state: settings,
+    set: setSettings,
+    undo,
+    redo,
+    reset: resetHistory,
+    canUndo,
+    canRedo,
+  } = useHistory<ParticleSettings>(defaultSettings);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -181,15 +195,65 @@ export default function ProjectEditor() {
 
   const handleSettingsChange = useCallback((newSettings: Partial<ParticleSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));
-  }, []);
+  }, [setSettings]);
 
   const handleResetSettings = useCallback(() => {
-    setSettings(defaultSettings);
+    resetHistory(defaultSettings);
     toast({
       title: 'Settings reset',
       description: 'All settings restored to defaults.',
     });
-  }, [toast]);
+  }, [resetHistory, toast]);
+
+  const handleLoadTemplate = useCallback((templateSettings: ParticleSettings) => {
+    setSettings(templateSettings);
+  }, [setSettings]);
+
+  // Keyboard shortcuts
+  const shortcuts: KeyboardShortcut[] = [
+    {
+      key: ' ',
+      action: () => setIsPlaying(prev => !prev),
+      description: 'Play/Pause',
+    },
+    {
+      key: 'z',
+      ctrl: true,
+      action: undo,
+      description: 'Undo',
+    },
+    {
+      key: 'z',
+      ctrl: true,
+      shift: true,
+      action: redo,
+      description: 'Redo',
+    },
+    {
+      key: 's',
+      ctrl: true,
+      action: handleSave,
+      description: 'Save',
+    },
+    {
+      key: 'r',
+      ctrl: true,
+      action: handleResetSettings,
+      description: 'Reset',
+    },
+    {
+      key: '[',
+      action: () => setCurrentTime(0),
+      description: 'Skip to start',
+    },
+    {
+      key: ']',
+      action: () => setCurrentTime(settings.duration),
+      description: 'Skip to end',
+    },
+  ];
+
+  useKeyboardShortcuts(shortcuts);
 
   if (authLoading || loading) {
     return (
@@ -231,6 +295,30 @@ export default function ProjectEditor() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Undo/Redo buttons */}
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-8 w-8"
+              onClick={undo}
+              disabled={!canUndo}
+              title="Undo (⌘Z)"
+            >
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-8 w-8"
+              onClick={redo}
+              disabled={!canRedo}
+              title="Redo (⌘⇧Z)"
+            >
+              <Redo2 className="h-4 w-4" />
+            </Button>
+
+            <div className="w-px h-6 bg-border/50 mx-1" />
+
             <Button 
               variant="ghost" 
               size="icon"
@@ -249,6 +337,17 @@ export default function ProjectEditor() {
             </Button>
             
             <div className="w-px h-6 bg-border/50 mx-1" />
+
+            {/* Template Manager */}
+            <TemplateManager 
+              currentSettings={settings} 
+              onLoadTemplate={handleLoadTemplate} 
+            />
+            
+            <div className="w-px h-6 bg-border/50 mx-1" />
+            
+            {/* Keyboard shortcuts help */}
+            <KeyboardShortcutsHelp />
             
             <Button 
               variant="outline" 
