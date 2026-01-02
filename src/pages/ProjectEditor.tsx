@@ -341,7 +341,8 @@ export default function ProjectEditor() {
             {/* Template Manager */}
             <TemplateManager 
               currentSettings={settings} 
-              onLoadTemplate={handleLoadTemplate} 
+              onLoadTemplate={handleLoadTemplate}
+              onCaptureSnapshot={async () => canvasRef.current?.captureSnapshot() ?? null}
             />
             
             <div className="w-px h-6 bg-border/50 mx-1" />
