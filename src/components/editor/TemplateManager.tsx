@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Bookmark, Save, Download, Trash2, Globe, Lock, Loader2, FolderOpen, ChevronDown } from 'lucide-react';
+import { Bookmark, Save, Download, Trash2, Globe, Lock, Loader2, FolderOpen, ChevronDown, ImageIcon } from 'lucide-react';
 import { ParticleSettings } from './ParticleControls';
 import { Json } from '@/integrations/supabase/types';
 
@@ -31,6 +31,7 @@ interface Template {
   id: string;
   name: string;
   description: string | null;
+  thumbnail_url: string | null;
   settings: ParticleSettings;
   is_public: boolean;
   created_at: string;
@@ -40,9 +41,10 @@ interface Template {
 interface TemplateManagerProps {
   currentSettings: ParticleSettings;
   onLoadTemplate: (settings: ParticleSettings) => void;
+  onCaptureSnapshot?: () => Promise<Blob | null>;
 }
 
-export function TemplateManager({ currentSettings, onLoadTemplate }: TemplateManagerProps) {
+export function TemplateManager({ currentSettings, onLoadTemplate, onCaptureSnapshot }: TemplateManagerProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -108,6 +110,28 @@ export function TemplateManager({ currentSettings, onLoadTemplate }: TemplateMan
 
     setSaving(true);
     try {
+      // Capture thumbnail snapshot
+      let thumbnailUrl: string | null = null;
+      if (onCaptureSnapshot) {
+        const blob = await onCaptureSnapshot();
+        if (blob) {
+          const fileName = `template-${Date.now()}-${user.id}.png`;
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('project-assets')
+            .upload(`templates/${fileName}`, blob, {
+              contentType: 'image/png',
+              cacheControl: '3600',
+            });
+
+          if (!uploadError && uploadData) {
+            const { data: urlData } = supabase.storage
+              .from('project-assets')
+              .getPublicUrl(uploadData.path);
+            thumbnailUrl = urlData.publicUrl;
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('animation_templates')
         .insert({
@@ -116,6 +140,7 @@ export function TemplateManager({ currentSettings, onLoadTemplate }: TemplateMan
           description: newTemplate.description.trim() || null,
           settings: currentSettings as unknown as Json,
           is_public: newTemplate.isPublic,
+          thumbnail_url: thumbnailUrl,
         });
 
       if (error) throw error;
@@ -295,20 +320,34 @@ export function TemplateManager({ currentSettings, onLoadTemplate }: TemplateMan
                           key={template.id}
                           className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
                         >
-                          <div className="flex-1 min-w-0 mr-3">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm truncate">{template.name}</span>
-                              {template.is_public ? (
-                                <Globe className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <div className="flex items-center gap-3 flex-1 min-w-0 mr-3">
+                            {/* Thumbnail */}
+                            <div className="w-12 h-12 rounded-md bg-muted/50 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                              {template.thumbnail_url ? (
+                                <img 
+                                  src={template.thumbnail_url} 
+                                  alt={template.name}
+                                  className="w-full h-full object-cover"
+                                />
                               ) : (
-                                <Lock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                <ImageIcon className="h-5 w-5 text-muted-foreground/50" />
                               )}
                             </div>
-                            {template.description && (
-                              <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                {template.description}
-                              </p>
-                            )}
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm truncate">{template.name}</span>
+                                {template.is_public ? (
+                                  <Globe className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                ) : (
+                                  <Lock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                )}
+                              </div>
+                              {template.description && (
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                  {template.description}
+                                </p>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1">
                             <Button
@@ -369,13 +408,27 @@ export function TemplateManager({ currentSettings, onLoadTemplate }: TemplateMan
                           className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
                           onClick={() => handleLoadTemplate(template)}
                         >
-                          <div className="flex-1 min-w-0 mr-3">
-                            <span className="font-medium text-sm truncate block">{template.name}</span>
-                            {template.description && (
-                              <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                {template.description}
-                              </p>
-                            )}
+                          <div className="flex items-center gap-3 flex-1 min-w-0 mr-3">
+                            {/* Thumbnail */}
+                            <div className="w-12 h-12 rounded-md bg-muted/50 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                              {template.thumbnail_url ? (
+                                <img 
+                                  src={template.thumbnail_url} 
+                                  alt={template.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <ImageIcon className="h-5 w-5 text-muted-foreground/50" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-medium text-sm truncate block">{template.name}</span>
+                              {template.description && (
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                  {template.description}
+                                </p>
+                              )}
+                            </div>
                           </div>
                           <Download className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         </div>

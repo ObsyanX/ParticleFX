@@ -494,6 +494,7 @@ function CameraController({ autoRotate }: { autoRotate: boolean }) {
 
 export interface ParticleCanvasHandle {
   getCanvas: () => HTMLCanvasElement | null;
+  captureSnapshot: () => Promise<Blob | null>;
 }
 
 interface ParticleCanvasProps {
@@ -542,6 +543,16 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle, ParticleCanvasPro
 
   useImperativeHandle(ref, () => ({
     getCanvas: () => containerRef.current?.querySelector('canvas') || null,
+    captureSnapshot: async (): Promise<Blob | null> => {
+      const canvas = containerRef.current?.querySelector('canvas');
+      if (!canvas) return null;
+      
+      return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+          resolve(blob);
+        }, 'image/png', 0.9);
+      });
+    },
   }));
 
   // Load all images
