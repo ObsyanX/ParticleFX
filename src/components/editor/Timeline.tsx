@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Asset } from '@/hooks/useProjectAssets';
 import { cn } from '@/lib/utils';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 interface TimelineProps {
   assets: Asset[];
@@ -38,50 +39,50 @@ export function Timeline({
   return (
     <div className="h-full flex flex-col">
       {/* Controls row */}
-      <div className="flex items-center gap-4 mb-3">
+      <div className="flex items-center gap-2 sm:gap-4 mb-3 flex-wrap">
         {/* Playback controls */}
         <div className="flex items-center gap-1">
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-8 w-8"
+            className="h-7 w-7 sm:h-8 sm:w-8"
             onClick={() => onTimeChange(0)}
           >
-            <SkipBack className="h-4 w-4" />
+            <SkipBack className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
           
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-10 w-10 rounded-full bg-primary/10 hover:bg-primary/20"
+            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/10 hover:bg-primary/20"
             onClick={onPlayPause}
           >
             {isPlaying ? (
-              <Pause className="h-5 w-5 text-primary" />
+              <Pause className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             ) : (
-              <Play className="h-5 w-5 text-primary ml-0.5" />
+              <Play className="h-4 w-4 sm:h-5 sm:w-5 text-primary ml-0.5" />
             )}
           </Button>
           
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-8 w-8"
+            className="h-7 w-7 sm:h-8 sm:w-8"
             onClick={() => onTimeChange(duration)}
           >
-            <SkipForward className="h-4 w-4" />
+            <SkipForward className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
         </div>
 
         {/* Time display */}
-        <div className="text-sm font-mono text-muted-foreground">
+        <div className="text-xs sm:text-sm font-mono text-muted-foreground whitespace-nowrap">
           <span className="text-foreground">{formatTime(currentTime)}</span>
           <span className="mx-1">/</span>
           <span>{formatTime(duration)}</span>
         </div>
 
         {/* Scrubber */}
-        <div className="flex-1">
+        <div className="flex-1 min-w-[100px]">
           <Slider
             value={[currentTime]}
             onValueChange={([value]) => onTimeChange(value)}
@@ -93,58 +94,68 @@ export function Timeline({
         </div>
       </div>
 
-      {/* Asset timeline track */}
-      <div className="flex-1 bg-muted/30 rounded-lg border border-border/50 p-2 overflow-hidden">
+      {/* Asset timeline track - Resizable */}
+      <div className="flex-1 bg-muted/30 rounded-lg border border-border/50 overflow-hidden relative">
         {assets.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+          <div className="h-full flex items-center justify-center text-xs sm:text-sm text-muted-foreground p-2">
             Upload images to create a timeline
           </div>
         ) : (
-          <div className="flex gap-1 h-full">
+          <ResizablePanelGroup direction="horizontal" className="h-full">
             {assets.map((asset, index) => {
               const isSelected = asset.id === selectedAssetId;
               const startTime = index * transitionDuration;
-              const width = assets.length === 1 ? 100 : (1 / assets.length) * 100;
+              const defaultSize = assets.length === 1 ? 100 : 100 / assets.length;
               
               return (
-                <div
+                <ResizablePanel
                   key={asset.id}
-                  className={cn(
-                    "relative h-full rounded-md overflow-hidden cursor-pointer border-2 transition-all",
-                    isSelected 
-                      ? "border-primary ring-1 ring-primary/30" 
-                      : "border-transparent hover:border-primary/50"
-                  )}
-                  style={{ width: `${width}%` }}
-                  onClick={() => onAssetSelect(asset.id)}
+                  defaultSize={defaultSize}
+                  minSize={10}
+                  className="h-full"
                 >
-                  <img
-                    src={asset.file_url}
-                    alt={asset.file_name || 'Asset'}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity">
-                    <div className="absolute bottom-1 left-1 right-1">
-                      <p className="text-[10px] text-white truncate">
-                        {asset.file_name || `Image ${index + 1}`}
-                      </p>
+                  <div
+                    className={cn(
+                      "relative h-full overflow-hidden cursor-pointer border-2 transition-all m-0.5 rounded-md",
+                      isSelected 
+                        ? "border-primary ring-1 ring-primary/30" 
+                        : "border-transparent hover:border-primary/50"
+                    )}
+                    onClick={() => onAssetSelect(asset.id)}
+                  >
+                    <img
+                      src={asset.file_url}
+                      alt={asset.file_name || 'Asset'}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity">
+                      <div className="absolute bottom-1 left-1 right-1">
+                        <p className="text-[9px] sm:text-[10px] text-white truncate">
+                          {asset.file_name || `Image ${index + 1}`}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Time marker */}
+                    <div className="absolute top-1 left-1 px-1 sm:px-1.5 py-0.5 bg-black/70 rounded text-[8px] sm:text-[9px] text-white font-mono">
+                      {formatTime(startTime)}
                     </div>
                   </div>
-                  
-                  {/* Time marker */}
-                  <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-black/70 rounded text-[9px] text-white font-mono">
-                    {formatTime(startTime)}
-                  </div>
-                </div>
+                  {index < assets.length - 1 && (
+                    <ResizableHandle withHandle className="bg-border/30 hover:bg-primary/50 transition-colors">
+                      <GripVertical className="h-3 w-3 text-muted-foreground" />
+                    </ResizableHandle>
+                  )}
+                </ResizablePanel>
               );
             })}
-          </div>
+          </ResizablePanelGroup>
         )}
 
         {/* Playhead */}
         {assets.length > 0 && (
           <div 
-            className="absolute top-0 bottom-0 w-0.5 bg-primary shadow-lg shadow-primary/50 pointer-events-none"
+            className="absolute top-0 bottom-0 w-0.5 bg-primary shadow-lg shadow-primary/50 pointer-events-none z-10"
             style={{ left: `${(currentTime / duration) * 100}%` }}
           >
             <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-primary rounded-full" />
