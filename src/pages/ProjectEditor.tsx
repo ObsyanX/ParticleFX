@@ -382,12 +382,12 @@ export default function ProjectEditor() {
       </header>
 
       {/* Main content area */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Left sidebar - Assets */}
         {leftPanelOpen && (
-          <aside className="w-64 border-r border-border/50 bg-card/30 p-4 flex-shrink-0 flex flex-col">
-            <h3 className="text-sm font-medium mb-4">Assets</h3>
-            <div className="flex-1 min-h-0">
+          <aside className="w-full lg:w-56 xl:w-64 border-b lg:border-b-0 lg:border-r border-border/50 bg-card/30 p-3 lg:p-4 flex-shrink-0 flex flex-col max-h-[30vh] lg:max-h-none">
+            <h3 className="text-xs lg:text-sm font-medium mb-2 lg:mb-4">Assets</h3>
+            <div className="flex-1 min-h-0 overflow-auto">
               <AssetGallery
                 assets={assets}
                 loading={assetsLoading}
@@ -403,10 +403,10 @@ export default function ProjectEditor() {
         )}
 
         {/* Canvas area */}
-        <main className="flex-1 flex items-center justify-center bg-muted/10 p-4 min-w-0">
-          <div className="w-full h-full max-w-5xl max-h-[70vh] rounded-xl overflow-hidden border border-border/50 shadow-xl">
+        <main className="flex-1 flex items-center justify-center bg-muted/10 p-2 sm:p-4 min-w-0 min-h-0">
+          <div className="w-full h-full max-w-5xl max-h-[50vh] sm:max-h-[60vh] lg:max-h-[70vh] rounded-xl overflow-hidden border border-border/50 shadow-xl">
             {assets.length > 0 ? (
-            <ParticleCanvas
+              <ParticleCanvas
                 ref={canvasRef}
                 assets={assets}
                 currentTime={currentTime}
@@ -429,13 +429,13 @@ export default function ProjectEditor() {
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-card/50">
-                <div className="text-center">
-                  <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 animate-pulse-glow">
-                    <Sparkles className="h-8 w-8 text-primary" />
+                <div className="text-center px-4">
+                  <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3 sm:mb-4 animate-pulse-glow">
+                    <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                   </div>
-                  <h3 className="text-lg font-medium mb-2">Upload images to begin</h3>
-                  <p className="text-sm text-muted-foreground max-w-xs">
-                    Add images from the left panel to create your particle animation
+                  <h3 className="text-base sm:text-lg font-medium mb-1 sm:mb-2">Upload images to begin</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground max-w-xs">
+                    Add images from the panel to create your particle animation
                   </p>
                 </div>
               </div>
@@ -445,8 +445,8 @@ export default function ProjectEditor() {
 
         {/* Right sidebar - Controls */}
         {rightPanelOpen && (
-          <aside className="w-72 border-l border-border/50 bg-card/30 p-4 flex-shrink-0 overflow-y-auto">
-            <h3 className="text-sm font-medium mb-4">Settings</h3>
+          <aside className="w-full lg:w-64 xl:w-72 border-t lg:border-t-0 lg:border-l border-border/50 bg-card/30 p-3 lg:p-4 flex-shrink-0 overflow-y-auto max-h-[30vh] lg:max-h-none">
+            <h3 className="text-xs lg:text-sm font-medium mb-2 lg:mb-4">Settings</h3>
             <ParticleControls
               settings={settings}
               onSettingsChange={handleSettingsChange}
@@ -458,7 +458,7 @@ export default function ProjectEditor() {
       </div>
 
       {/* Bottom timeline */}
-      <div className="h-28 border-t border-border/50 bg-card/50 px-4 py-3 flex-shrink-0">
+      <div className="h-24 sm:h-28 lg:h-32 border-t border-border/50 bg-card/50 px-2 sm:px-4 py-2 sm:py-3 flex-shrink-0">
         <Timeline
           assets={assets}
           duration={settings.duration}

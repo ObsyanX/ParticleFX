@@ -36,7 +36,7 @@ export interface ParticleSettings {
 }
 
 export const defaultSettings: ParticleSettings = {
-  particleCount: 50000,
+  particleCount: 100000,
   particleSize: 2,
   transitionStyle: 'morph',
   transitionDuration: 2,
