@@ -1,10 +1,26 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Asset } from '@/hooks/useProjectAssets';
 import { cn } from '@/lib/utils';
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface TimelineProps {
   assets: Asset[];
@@ -15,6 +31,76 @@ interface TimelineProps {
   onPlayPause: () => void;
   onAssetSelect: (assetId: string) => void;
   selectedAssetId: string | null;
+  onReorderAssets?: (assets: Asset[]) => void;
+}
+
+interface SortableAssetProps {
+  asset: Asset;
+  index: number;
+  isSelected: boolean;
+  startTime: number;
+  onSelect: () => void;
+  formatTime: (seconds: number) => string;
+}
+
+function SortableAsset({ asset, index, isSelected, startTime, onSelect, formatTime }: SortableAssetProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: asset.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "relative h-full overflow-hidden cursor-pointer border-2 transition-all rounded-md flex-shrink-0",
+        "w-20 sm:w-24 md:w-28",
+        isDragging && "opacity-50 z-50",
+        isSelected 
+          ? "border-primary ring-1 ring-primary/30" 
+          : "border-transparent hover:border-primary/50"
+      )}
+      onClick={onSelect}
+    >
+      {/* Drag handle */}
+      <div 
+        {...attributes} 
+        {...listeners}
+        className="absolute top-1 right-1 z-10 p-1 bg-black/50 rounded cursor-grab active:cursor-grabbing hover:bg-black/70 transition-colors"
+      >
+        <GripVertical className="h-3 w-3 text-white" />
+      </div>
+      
+      <img
+        src={asset.file_url}
+        alt={asset.file_name || 'Asset'}
+        className="w-full h-full object-cover"
+        draggable={false}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity">
+        <div className="absolute bottom-1 left-1 right-1">
+          <p className="text-[9px] sm:text-[10px] text-white truncate">
+            {asset.file_name || `Image ${index + 1}`}
+          </p>
+        </div>
+      </div>
+      
+      {/* Time marker */}
+      <div className="absolute top-1 left-1 px-1 sm:px-1.5 py-0.5 bg-black/70 rounded text-[8px] sm:text-[9px] text-white font-mono">
+        {formatTime(startTime)}
+      </div>
+    </div>
+  );
 }
 
 export function Timeline({
@@ -26,7 +112,19 @@ export function Timeline({
   onPlayPause,
   onAssetSelect,
   selectedAssetId,
+  onReorderAssets,
 }: TimelineProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -35,6 +133,17 @@ export function Timeline({
   };
 
   const transitionDuration = assets.length > 1 ? duration / (assets.length - 1) : duration;
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = assets.findIndex((a) => a.id === active.id);
+      const newIndex = assets.findIndex((a) => a.id === over.id);
+      const newOrder = arrayMove(assets, oldIndex, newIndex);
+      onReorderAssets?.(newOrder);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -94,62 +203,42 @@ export function Timeline({
         </div>
       </div>
 
-      {/* Asset timeline track - Resizable */}
+      {/* Asset timeline track - Drag and Drop */}
       <div className="flex-1 bg-muted/30 rounded-lg border border-border/50 overflow-hidden relative">
         {assets.length === 0 ? (
           <div className="h-full flex items-center justify-center text-xs sm:text-sm text-muted-foreground p-2">
             Upload images to create a timeline
           </div>
         ) : (
-          <ResizablePanelGroup direction="horizontal" className="h-full">
-            {assets.map((asset, index) => {
-              const isSelected = asset.id === selectedAssetId;
-              const startTime = index * transitionDuration;
-              const defaultSize = assets.length === 1 ? 100 : 100 / assets.length;
-              
-              return (
-                <ResizablePanel
-                  key={asset.id}
-                  defaultSize={defaultSize}
-                  minSize={10}
-                  className="h-full"
-                >
-                  <div
-                    className={cn(
-                      "relative h-full overflow-hidden cursor-pointer border-2 transition-all m-0.5 rounded-md",
-                      isSelected 
-                        ? "border-primary ring-1 ring-primary/30" 
-                        : "border-transparent hover:border-primary/50"
-                    )}
-                    onClick={() => onAssetSelect(asset.id)}
-                  >
-                    <img
-                      src={asset.file_url}
-                      alt={asset.file_name || 'Asset'}
-                      className="w-full h-full object-cover"
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={assets.map(a => a.id)}
+              strategy={horizontalListSortingStrategy}
+            >
+              <div className="h-full flex items-center gap-1 p-1 overflow-x-auto">
+                {assets.map((asset, index) => {
+                  const isSelected = asset.id === selectedAssetId;
+                  const startTime = index * transitionDuration;
+                  
+                  return (
+                    <SortableAsset
+                      key={asset.id}
+                      asset={asset}
+                      index={index}
+                      isSelected={isSelected}
+                      startTime={startTime}
+                      onSelect={() => onAssetSelect(asset.id)}
+                      formatTime={formatTime}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity">
-                      <div className="absolute bottom-1 left-1 right-1">
-                        <p className="text-[9px] sm:text-[10px] text-white truncate">
-                          {asset.file_name || `Image ${index + 1}`}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {/* Time marker */}
-                    <div className="absolute top-1 left-1 px-1 sm:px-1.5 py-0.5 bg-black/70 rounded text-[8px] sm:text-[9px] text-white font-mono">
-                      {formatTime(startTime)}
-                    </div>
-                  </div>
-                  {index < assets.length - 1 && (
-                    <ResizableHandle withHandle className="bg-border/30 hover:bg-primary/50 transition-colors">
-                      <GripVertical className="h-3 w-3 text-muted-foreground" />
-                    </ResizableHandle>
-                  )}
-                </ResizablePanel>
-              );
-            })}
-          </ResizablePanelGroup>
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
 
         {/* Playhead */}
