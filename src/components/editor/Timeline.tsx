@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, GripVertical } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { Play, Pause, SkipBack, SkipForward, GripVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Asset } from '@/hooks/useProjectAssets';
@@ -15,6 +15,7 @@ import {
   DragOverlay,
   DragStartEvent,
   DragOverEvent,
+  TouchSensor,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -147,11 +148,22 @@ export function Timeline({
 }: TimelineProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+  
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const scrubberRef = useRef<HTMLDivElement>(null);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -169,6 +181,86 @@ export function Timeline({
   const transitionDuration = assets.length > 1 ? duration / (assets.length - 1) : duration;
 
   const activeAsset = activeId ? assets.find(a => a.id === activeId) : null;
+
+  // Navigate to previous/next asset
+  const navigateAsset = useCallback((direction: 'prev' | 'next') => {
+    if (assets.length === 0) return;
+    
+    const currentIndex = selectedAssetId 
+      ? assets.findIndex(a => a.id === selectedAssetId)
+      : -1;
+    
+    let newIndex: number;
+    if (direction === 'prev') {
+      newIndex = currentIndex <= 0 ? assets.length - 1 : currentIndex - 1;
+    } else {
+      newIndex = currentIndex >= assets.length - 1 ? 0 : currentIndex + 1;
+    }
+    
+    onAssetSelect(assets[newIndex].id);
+    onTimeChange(newIndex * transitionDuration);
+  }, [assets, selectedAssetId, onAssetSelect, onTimeChange, transitionDuration]);
+
+  // Touch handlers for swipe gestures on the timeline track
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now(),
+    };
+    setIsSwiping(false);
+    setSwipeDirection(null);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+    
+    // Only handle horizontal swipes
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 20) {
+      setIsSwiping(true);
+      setSwipeDirection(deltaX > 0 ? 'right' : 'left');
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaTime = Date.now() - touchStartRef.current.time;
+    
+    // Swipe threshold: 50px distance and less than 300ms
+    const isQuickSwipe = Math.abs(deltaX) > 50 && deltaTime < 300;
+    
+    if (isQuickSwipe && isSwiping) {
+      if (deltaX > 0) {
+        navigateAsset('prev');
+      } else {
+        navigateAsset('next');
+      }
+    }
+    
+    touchStartRef.current = null;
+    setIsSwiping(false);
+    setSwipeDirection(null);
+  }, [isSwiping, navigateAsset]);
+
+  // Touch scrubbing on the progress bar area
+  const handleScrubberTouch = useCallback((e: React.TouchEvent) => {
+    if (!scrubberRef.current) return;
+    
+    const rect = scrubberRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, x / rect.width));
+    const newTime = percentage * duration;
+    onTimeChange(newTime);
+  }, [duration, onTimeChange]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -246,6 +338,28 @@ export function Timeline({
           </Button>
         </div>
 
+        {/* Mobile navigation buttons */}
+        <div className="flex items-center gap-1 sm:hidden">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="h-7 w-7"
+            onClick={() => navigateAsset('prev')}
+            disabled={assets.length === 0}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="h-7 w-7"
+            onClick={() => navigateAsset('next')}
+            disabled={assets.length === 0}
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+
         {/* Time display */}
         <div className="text-xs sm:text-sm font-mono text-muted-foreground whitespace-nowrap">
           <span className="text-foreground">{formatTime(currentTime)}</span>
@@ -253,8 +367,13 @@ export function Timeline({
           <span>{formatTime(duration)}</span>
         </div>
 
-        {/* Scrubber */}
-        <div className="flex-1 min-w-[100px]">
+        {/* Scrubber with touch support */}
+        <div 
+          ref={scrubberRef}
+          className="flex-1 min-w-[100px] touch-none"
+          onTouchMove={handleScrubberTouch}
+          onTouchStart={handleScrubberTouch}
+        >
           <Slider
             value={[currentTime]}
             onValueChange={([value]) => onTimeChange(value)}
@@ -266,8 +385,33 @@ export function Timeline({
         </div>
       </div>
 
-      {/* Asset timeline track - Drag and Drop */}
-      <div className="flex-1 bg-muted/30 rounded-lg border border-border/50 overflow-hidden relative">
+      {/* Asset timeline track - Drag and Drop with swipe support */}
+      <div 
+        className={cn(
+          "flex-1 bg-muted/30 rounded-lg border border-border/50 overflow-hidden relative transition-all",
+          isSwiping && swipeDirection === 'left' && "border-l-primary border-l-2",
+          isSwiping && swipeDirection === 'right' && "border-r-primary border-r-2"
+        )}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Swipe indicator overlays */}
+        {isSwiping && (
+          <>
+            {swipeDirection === 'left' && (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 z-30 bg-primary/20 rounded-full p-2 animate-pulse">
+                <ChevronRight className="h-4 w-4 text-primary" />
+              </div>
+            )}
+            {swipeDirection === 'right' && (
+              <div className="absolute left-2 top-1/2 -translate-y-1/2 z-30 bg-primary/20 rounded-full p-2 animate-pulse">
+                <ChevronLeft className="h-4 w-4 text-primary" />
+              </div>
+            )}
+          </>
+        )}
+
         {assets.length === 0 ? (
           <div className="h-full flex items-center justify-center text-xs sm:text-sm text-muted-foreground p-2">
             Upload images to create a timeline
