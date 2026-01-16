@@ -12,6 +12,9 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  DragOverEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -41,9 +44,11 @@ interface SortableAssetProps {
   startTime: number;
   onSelect: () => void;
   formatTime: (seconds: number) => string;
+  isOver?: boolean;
+  overPosition?: 'before' | 'after' | null;
 }
 
-function SortableAsset({ asset, index, isSelected, startTime, onSelect, formatTime }: SortableAssetProps) {
+function SortableAsset({ asset, index, isSelected, startTime, onSelect, formatTime, isOver, overPosition }: SortableAssetProps) {
   const {
     attributes,
     listeners,
@@ -59,46 +64,72 @@ function SortableAsset({ asset, index, isSelected, startTime, onSelect, formatTi
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "relative h-full overflow-hidden cursor-pointer border-2 transition-all rounded-md flex-shrink-0",
-        "w-20 sm:w-24 md:w-28",
-        isDragging && "opacity-50 z-50",
-        isSelected 
-          ? "border-primary ring-1 ring-primary/30" 
-          : "border-transparent hover:border-primary/50"
+    <div className="relative flex items-center h-full">
+      {/* Drop indicator - before */}
+      {isOver && overPosition === 'before' && (
+        <div className="absolute -left-1 top-1 bottom-1 w-1 bg-primary rounded-full z-20 animate-pulse shadow-lg shadow-primary/50" />
       )}
-      onClick={onSelect}
-    >
-      {/* Drag handle */}
-      <div 
-        {...attributes} 
-        {...listeners}
-        className="absolute top-1 right-1 z-10 p-1 bg-black/50 rounded cursor-grab active:cursor-grabbing hover:bg-black/70 transition-colors"
-      >
-        <GripVertical className="h-3 w-3 text-white" />
-      </div>
       
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          "relative h-full overflow-hidden cursor-pointer border-2 transition-all rounded-md flex-shrink-0",
+          "w-20 sm:w-24 md:w-28",
+          isDragging && "opacity-30 scale-95",
+          isSelected 
+            ? "border-primary ring-1 ring-primary/30" 
+            : "border-transparent hover:border-primary/50"
+        )}
+        onClick={onSelect}
+      >
+        {/* Drag handle */}
+        <div 
+          {...attributes} 
+          {...listeners}
+          className="absolute top-1 right-1 z-10 p-1 bg-black/50 rounded cursor-grab active:cursor-grabbing hover:bg-black/70 transition-colors"
+        >
+          <GripVertical className="h-3 w-3 text-white" />
+        </div>
+        
+        <img
+          src={asset.file_url}
+          alt={asset.file_name || 'Asset'}
+          className="w-full h-full object-cover"
+          draggable={false}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity">
+          <div className="absolute bottom-1 left-1 right-1">
+            <p className="text-[9px] sm:text-[10px] text-white truncate">
+              {asset.file_name || `Image ${index + 1}`}
+            </p>
+          </div>
+        </div>
+        
+        {/* Time marker */}
+        <div className="absolute top-1 left-1 px-1 sm:px-1.5 py-0.5 bg-black/70 rounded text-[8px] sm:text-[9px] text-white font-mono">
+          {formatTime(startTime)}
+        </div>
+      </div>
+
+      {/* Drop indicator - after */}
+      {isOver && overPosition === 'after' && (
+        <div className="absolute -right-1 top-1 bottom-1 w-1 bg-primary rounded-full z-20 animate-pulse shadow-lg shadow-primary/50" />
+      )}
+    </div>
+  );
+}
+
+function DragOverlayItem({ asset }: { asset: Asset }) {
+  return (
+    <div className="relative h-16 w-20 sm:w-24 md:w-28 overflow-hidden rounded-md border-2 border-primary shadow-2xl shadow-primary/30 bg-card">
       <img
         src={asset.file_url}
         alt={asset.file_name || 'Asset'}
         className="w-full h-full object-cover"
         draggable={false}
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity">
-        <div className="absolute bottom-1 left-1 right-1">
-          <p className="text-[9px] sm:text-[10px] text-white truncate">
-            {asset.file_name || `Image ${index + 1}`}
-          </p>
-        </div>
-      </div>
-      
-      {/* Time marker */}
-      <div className="absolute top-1 left-1 px-1 sm:px-1.5 py-0.5 bg-black/70 rounded text-[8px] sm:text-[9px] text-white font-mono">
-        {formatTime(startTime)}
-      </div>
+      <div className="absolute inset-0 bg-primary/10" />
     </div>
   );
 }
@@ -114,6 +145,9 @@ export function Timeline({
   selectedAssetId,
   onReorderAssets,
 }: TimelineProps) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -134,8 +168,21 @@ export function Timeline({
 
   const transitionDuration = assets.length > 1 ? duration / (assets.length - 1) : duration;
 
+  const activeAsset = activeId ? assets.find(a => a.id === activeId) : null;
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    setOverId(event.over?.id as string | null);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+
+    setActiveId(null);
+    setOverId(null);
 
     if (over && active.id !== over.id) {
       const oldIndex = assets.findIndex((a) => a.id === active.id);
@@ -143,6 +190,22 @@ export function Timeline({
       const newOrder = arrayMove(assets, oldIndex, newIndex);
       onReorderAssets?.(newOrder);
     }
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setOverId(null);
+  };
+
+  const getOverPosition = (assetId: string): 'before' | 'after' | null => {
+    if (!activeId || !overId || overId !== assetId) return null;
+    
+    const activeIndex = assets.findIndex(a => a.id === activeId);
+    const overIndex = assets.findIndex(a => a.id === overId);
+    
+    if (activeIndex === -1 || overIndex === -1) return null;
+    
+    return activeIndex < overIndex ? 'after' : 'before';
   };
 
   return (
@@ -213,7 +276,10 @@ export function Timeline({
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
             <SortableContext
               items={assets.map(a => a.id)}
@@ -223,6 +289,7 @@ export function Timeline({
                 {assets.map((asset, index) => {
                   const isSelected = asset.id === selectedAssetId;
                   const startTime = index * transitionDuration;
+                  const overPosition = getOverPosition(asset.id);
                   
                   return (
                     <SortableAsset
@@ -233,11 +300,20 @@ export function Timeline({
                       startTime={startTime}
                       onSelect={() => onAssetSelect(asset.id)}
                       formatTime={formatTime}
+                      isOver={overId === asset.id && activeId !== asset.id}
+                      overPosition={overPosition}
                     />
                   );
                 })}
               </div>
             </SortableContext>
+            
+            <DragOverlay dropAnimation={{
+              duration: 200,
+              easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+            }}>
+              {activeAsset ? <DragOverlayItem asset={activeAsset} /> : null}
+            </DragOverlay>
           </DndContext>
         )}
 
