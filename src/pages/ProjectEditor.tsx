@@ -468,6 +468,7 @@ export default function ProjectEditor() {
           onPlayPause={() => setIsPlaying(!isPlaying)}
           onAssetSelect={(id) => setSelectedAssetId(id)}
           selectedAssetId={selectedAssetId}
+          onReorderAssets={handleReorderAssets}
         />
       </div>
     </div>
