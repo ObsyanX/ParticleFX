@@ -7,6 +7,7 @@ interface GalleryItem {
   id: string;
   title: string;
   author: string;
+  description: string;
   thumbnail: string;
   views: number;
   likes: number;
@@ -18,6 +19,7 @@ const galleryItems: GalleryItem[] = [
     id: '1',
     title: 'Cosmic Nebula Transition',
     author: 'Sarah Chen',
+    description: 'Ultra-cinematic 3D cosmic particle simulation. Millions of glowing atomic particles floating in deep space, attracted to invisible energy cores, forming spiral nebula filaments before exploding into drifting atoms.',
     thumbnail: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=600&q=80',
     views: 12400,
     likes: 890,
@@ -27,6 +29,7 @@ const galleryItems: GalleryItem[] = [
     id: '2',
     title: 'Ocean Wave Morph',
     author: 'Marcus Johnson',
+    description: 'Serene ocean particles morphing through wave patterns with fluid, calming motion.',
     thumbnail: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=600&q=80',
     views: 8900,
     likes: 654,
@@ -36,6 +39,7 @@ const galleryItems: GalleryItem[] = [
     id: '3',
     title: 'City Lights Explosion',
     author: 'Emma Rodriguez',
+    description: 'Urban nightscape particles bursting with neon energy and metropolitan vibrancy.',
     thumbnail: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=600&q=80',
     views: 15200,
     likes: 1120,
@@ -45,6 +49,7 @@ const galleryItems: GalleryItem[] = [
     id: '4',
     title: 'Abstract Flow',
     author: 'David Kim',
+    description: 'Mesmerizing abstract patterns flowing through chromatic particle streams.',
     thumbnail: 'https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=600&q=80',
     views: 7600,
     likes: 520,
@@ -54,6 +59,7 @@ const galleryItems: GalleryItem[] = [
     id: '5',
     title: 'Northern Lights Dance',
     author: 'Anna Svensson',
+    description: 'Aurora borealis particles dancing with ethereal plasma gradients and soft volumetric fog.',
     thumbnail: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=600&q=80',
     views: 21000,
     likes: 1890,
@@ -63,6 +69,7 @@ const galleryItems: GalleryItem[] = [
     id: '6',
     title: 'Geometric Swirl',
     author: 'Alex Turner',
+    description: 'Precise geometric particles spiraling through mathematical beauty and form.',
     thumbnail: 'https://images.unsplash.com/photo-1550859492-d5da9d8e45f3?w=600&q=80',
     views: 9400,
     likes: 678,
@@ -170,7 +177,10 @@ export function GallerySection() {
                   <h3 className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors">
                     {item.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground mb-3">
+                  <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                    {item.description}
+                  </p>
+                  <p className="text-sm text-muted-foreground/70 mb-3">
                     by {item.author}
                   </p>
                   
