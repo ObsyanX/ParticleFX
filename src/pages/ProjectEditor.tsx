@@ -7,6 +7,7 @@ import { useHistory } from '@/hooks/useHistory';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { AssetGallery } from '@/components/editor/AssetGallery';
 import { ParticleCanvas, ParticleCanvasHandle } from '@/components/editor/ParticleCanvas';
@@ -26,8 +27,11 @@ import {
   PanelLeft,
   PanelRight,
   Undo2,
-  Redo2
+  Redo2,
+  Maximize,
+  Minimize
 } from 'lucide-react';
+import { useFullscreen } from '@/hooks/useFullscreen';
 
 interface Project {
   id: string;
@@ -42,6 +46,8 @@ export default function ProjectEditor() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const canvasRef = useRef<ParticleCanvasHandle>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const { isFullscreen, toggleFullscreen } = useFullscreen(canvasContainerRef);
   
   // Project state
   const [project, setProject] = useState<Project | null>(null);
@@ -404,7 +410,30 @@ export default function ProjectEditor() {
 
         {/* Canvas area */}
         <main className="flex-1 flex items-center justify-center bg-muted/10 p-2 sm:p-4 min-w-0 min-h-0">
-          <div className="w-full h-full max-w-5xl max-h-[50vh] sm:max-h-[60vh] lg:max-h-[70vh] rounded-xl overflow-hidden border border-border/50 shadow-xl">
+          <div 
+            ref={canvasContainerRef}
+            className={cn(
+              "relative rounded-xl overflow-hidden border border-border/50 shadow-xl",
+              isFullscreen 
+                ? "w-full h-full max-w-none max-h-none rounded-none border-0" 
+                : "w-full h-full max-w-5xl max-h-[50vh] sm:max-h-[60vh] lg:max-h-[70vh]"
+            )}
+          >
+            {/* Fullscreen toggle button */}
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute top-3 right-3 z-20 h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background"
+              onClick={toggleFullscreen}
+              title={isFullscreen ? "Exit fullscreen (Esc)" : "Enter fullscreen"}
+            >
+              {isFullscreen ? (
+                <Minimize className="h-4 w-4" />
+              ) : (
+                <Maximize className="h-4 w-4" />
+              )}
+            </Button>
+
             {assets.length > 0 ? (
               <ParticleCanvas
                 ref={canvasRef}
