@@ -182,6 +182,13 @@ export function Timeline({
 
   const activeAsset = activeId ? assets.find(a => a.id === activeId) : null;
 
+  // Haptic feedback helper
+  const triggerHaptic = useCallback((pattern: number | number[] = 10) => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(pattern);
+    }
+  }, []);
+
   // Navigate to previous/next asset
   const navigateAsset = useCallback((direction: 'prev' | 'next') => {
     if (assets.length === 0) return;
@@ -197,9 +204,10 @@ export function Timeline({
       newIndex = currentIndex >= assets.length - 1 ? 0 : currentIndex + 1;
     }
     
+    triggerHaptic(15);
     onAssetSelect(assets[newIndex].id);
     onTimeChange(newIndex * transitionDuration);
-  }, [assets, selectedAssetId, onAssetSelect, onTimeChange, transitionDuration]);
+  }, [assets, selectedAssetId, onAssetSelect, onTimeChange, transitionDuration, triggerHaptic]);
 
   // Touch handlers for swipe gestures on the timeline track
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -238,6 +246,7 @@ export function Timeline({
     const isQuickSwipe = Math.abs(deltaX) > 50 && deltaTime < 300;
     
     if (isQuickSwipe && isSwiping) {
+      triggerHaptic(20);
       if (deltaX > 0) {
         navigateAsset('prev');
       } else {
@@ -248,7 +257,7 @@ export function Timeline({
     touchStartRef.current = null;
     setIsSwiping(false);
     setSwipeDirection(null);
-  }, [isSwiping, navigateAsset]);
+  }, [isSwiping, navigateAsset, triggerHaptic]);
 
   // Touch scrubbing on the progress bar area
   const handleScrubberTouch = useCallback((e: React.TouchEvent) => {
@@ -264,6 +273,7 @@ export function Timeline({
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
+    triggerHaptic(25);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -277,6 +287,7 @@ export function Timeline({
     setOverId(null);
 
     if (over && active.id !== over.id) {
+      triggerHaptic([10, 50, 10]);
       const oldIndex = assets.findIndex((a) => a.id === active.id);
       const newIndex = assets.findIndex((a) => a.id === over.id);
       const newOrder = arrayMove(assets, oldIndex, newIndex);
