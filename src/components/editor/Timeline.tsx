@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Asset } from '@/hooks/useProjectAssets';
 import { cn } from '@/lib/utils';
+import { useUISound } from '@/hooks/useUISound';
 import {
   DndContext,
   closestCenter,
@@ -153,6 +154,7 @@ export function Timeline({
   
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const scrubberRef = useRef<HTMLDivElement>(null);
+  const { playSound } = useUISound();
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -205,9 +207,10 @@ export function Timeline({
     }
     
     triggerHaptic(15);
+    playSound('swipe');
     onAssetSelect(assets[newIndex].id);
     onTimeChange(newIndex * transitionDuration);
-  }, [assets, selectedAssetId, onAssetSelect, onTimeChange, transitionDuration, triggerHaptic]);
+  }, [assets, selectedAssetId, onAssetSelect, onTimeChange, transitionDuration, triggerHaptic, playSound]);
 
   // Touch handlers for swipe gestures on the timeline track
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -330,7 +333,10 @@ export function Timeline({
             variant="ghost" 
             size="icon" 
             className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/10 hover:bg-primary/20"
-            onClick={onPlayPause}
+            onClick={() => {
+              playSound(isPlaying ? 'pause' : 'play');
+              onPlayPause();
+            }}
           >
             {isPlaying ? (
               <Pause className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
@@ -453,7 +459,10 @@ export function Timeline({
                       index={index}
                       isSelected={isSelected}
                       startTime={startTime}
-                      onSelect={() => onAssetSelect(asset.id)}
+                      onSelect={() => {
+                        playSound('select');
+                        onAssetSelect(asset.id);
+                      }}
                       formatTime={formatTime}
                       isOver={overId === asset.id && activeId !== asset.id}
                       overPosition={overPosition}
