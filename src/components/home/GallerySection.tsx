@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { ScrollReveal } from '@/hooks/useScrollReveal';
 import { Play, Pause, Heart, Eye, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { GalleryParticles } from './GalleryParticles';
 
 interface GalleryItem {
   id: string;
