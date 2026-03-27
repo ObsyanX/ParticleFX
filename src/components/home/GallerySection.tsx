@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ScrollReveal } from '@/hooks/useScrollReveal';
 import { Play, Heart, Eye, ExternalLink, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { GalleryParticles } from './GalleryParticles';
 import { GalleryLightbox } from './GalleryLightbox';
+import { cn } from '@/lib/utils';
 
 interface GalleryItem {
   id: string;
@@ -148,11 +149,149 @@ const formatNumber = (num: number): string => {
   return num.toString();
 };
 
+function GalleryCard({
+  item,
+  index,
+  isHovered,
+  isLiked,
+  likeCount,
+  onHover,
+  onLeave,
+  onClick,
+  onLike,
+}: {
+  item: GalleryItem;
+  index: number;
+  isHovered: boolean;
+  isLiked: boolean;
+  likeCount: number;
+  onHover: () => void;
+  onLeave: () => void;
+  onClick: () => void;
+  onLike: (e: React.MouseEvent) => void;
+}) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), index * 60);
+    return () => {
+      clearTimeout(timer);
+      setVisible(false);
+    };
+  }, [index]);
+
+  return (
+    <div
+      className={cn(
+        'transition-all duration-500 ease-out',
+        visible
+          ? 'opacity-100 translate-y-0 scale-100'
+          : 'opacity-0 translate-y-6 scale-95'
+      )}
+    >
+      <div
+        className="group relative rounded-2xl overflow-hidden bg-card border border-border/50 hover:border-primary/50 transition-all duration-500 hover:shadow-xl hover:shadow-primary/10 cursor-pointer"
+        onMouseEnter={onHover}
+        onMouseLeave={onLeave}
+        onClick={onClick}
+      >
+        {/* Thumbnail */}
+        <div className="aspect-video relative overflow-hidden">
+          <img
+            src={item.thumbnail}
+            alt={item.title}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            loading="lazy"
+          />
+          <div className={cn(
+            'absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent transition-opacity duration-300',
+            isHovered ? 'opacity-100' : 'opacity-0'
+          )} />
+          <div className={cn(
+            'absolute inset-0 flex items-center justify-center transition-all duration-300',
+            isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+          )}>
+            <button className="h-16 w-16 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary transition-colors">
+              <Play className="h-7 w-7 ml-1" fill="currentColor" />
+            </button>
+          </div>
+          <div className="absolute top-3 left-3">
+            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-background/80 backdrop-blur-sm text-foreground border border-border/50">
+              {item.category}
+            </span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-4">
+          <h3 className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors">
+            {item.title}
+          </h3>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-xs text-muted-foreground mb-2 line-clamp-2 cursor-default">
+                  {item.description}
+                </p>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs">
+                {item.description}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <p className="text-sm text-muted-foreground/70 mb-3">
+            by {item.author}
+          </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Eye className="h-4 w-4" />
+                {formatNumber(item.views)}
+              </span>
+              <button
+                onClick={onLike}
+                className={cn(
+                  'flex items-center gap-1.5 transition-all duration-300 hover:scale-110',
+                  isLiked ? 'text-red-500' : 'text-muted-foreground hover:text-red-400'
+                )}
+              >
+                <Heart
+                  className={cn('h-4 w-4 transition-transform duration-300', isLiked && 'scale-110')}
+                  fill={isLiked ? 'currentColor' : 'none'}
+                />
+                {formatNumber(likeCount)}
+              </button>
+            </div>
+            <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg hover:bg-muted/50">
+              <ExternalLink className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+
+        {/* Animated border on hover */}
+        <div className={cn(
+          'absolute inset-0 rounded-2xl transition-opacity duration-500 pointer-events-none',
+          isHovered ? 'opacity-100' : 'opacity-0'
+        )}>
+          <div className="absolute inset-0 rounded-2xl border-2 border-primary/50" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function GallerySection() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [lightboxItem, setLightboxItem] = useState<GalleryItem | null>(null);
+  const [likedItems, setLikedItems] = useState<Set<string>>(new Set());
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>(() => {
+    const counts: Record<string, number> = {};
+    galleryItems.forEach(item => { counts[item.id] = item.likes; });
+    return counts;
+  });
+  const [filterKey, setFilterKey] = useState(0);
 
   const filteredItems = activeCategory === 'All'
     ? galleryItems
@@ -164,10 +303,26 @@ export function GallerySection() {
   const handleCategoryChange = (category: string) => {
     setActiveCategory(category);
     setVisibleCount(ITEMS_PER_PAGE);
+    setFilterKey(prev => prev + 1);
   };
 
   const loadMore = () => {
     setVisibleCount(prev => prev + ITEMS_PER_PAGE);
+  };
+
+  const handleLike = (e: React.MouseEvent, itemId: string) => {
+    e.stopPropagation();
+    setLikedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+        setLikeCounts(c => ({ ...c, [itemId]: (c[itemId] || 0) - 1 }));
+      } else {
+        next.add(itemId);
+        setLikeCounts(c => ({ ...c, [itemId]: (c[itemId] || 0) + 1 }));
+      }
+      return next;
+    });
   };
 
   return (
@@ -197,11 +352,12 @@ export function GallerySection() {
             <button
               key={category}
               onClick={() => handleCategoryChange(category)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+              className={cn(
+                'px-4 py-2 rounded-full text-sm font-medium transition-all duration-300',
                 activeCategory === category
                   ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
                   : 'bg-card/50 text-muted-foreground hover:bg-card hover:text-foreground border border-border/50'
-              }`}
+              )}
             >
               {category}
             </button>
@@ -209,85 +365,20 @@ export function GallerySection() {
         </ScrollReveal>
 
         {/* Gallery Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div key={filterKey} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {displayedItems.map((item, index) => (
-            <ScrollReveal key={item.id} delay={index * 0.1}>
-              <div
-                className="group relative rounded-2xl overflow-hidden bg-card border border-border/50 hover:border-primary/50 transition-all duration-500 hover:shadow-xl hover:shadow-primary/10 cursor-pointer"
-                onMouseEnter={() => setHoveredItem(item.id)}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => setLightboxItem(item)}
-              >
-                {/* Thumbnail */}
-                <div className="aspect-video relative overflow-hidden">
-                  <img
-                    src={item.thumbnail}
-                    alt={item.title}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    loading="lazy"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent transition-opacity duration-300 ${
-                    hoveredItem === item.id ? 'opacity-100' : 'opacity-0'
-                  }`} />
-                  <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${
-                    hoveredItem === item.id ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
-                  }`}>
-                    <button className="h-16 w-16 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary transition-colors">
-                      <Play className="h-7 w-7 ml-1" fill="currentColor" />
-                    </button>
-                  </div>
-                  <div className="absolute top-3 left-3">
-                    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-background/80 backdrop-blur-sm text-foreground border border-border/50">
-                      {item.category}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors">
-                    {item.title}
-                  </h3>
-                  <TooltipProvider delayDuration={300}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <p className="text-xs text-muted-foreground mb-2 line-clamp-2 cursor-default">
-                          {item.description}
-                        </p>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-xs text-xs">
-                        {item.description}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <p className="text-sm text-muted-foreground/70 mb-3">
-                    by {item.author}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <Eye className="h-4 w-4" />
-                        {formatNumber(item.views)}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <Heart className="h-4 w-4" />
-                        {formatNumber(item.likes)}
-                      </span>
-                    </div>
-                    <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg hover:bg-muted/50">
-                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Animated border on hover */}
-                <div className={`absolute inset-0 rounded-2xl transition-opacity duration-500 pointer-events-none ${
-                  hoveredItem === item.id ? 'opacity-100' : 'opacity-0'
-                }`}>
-                  <div className="absolute inset-0 rounded-2xl border-2 border-primary/50" />
-                </div>
-              </div>
-            </ScrollReveal>
+            <GalleryCard
+              key={item.id}
+              item={item}
+              index={index}
+              isHovered={hoveredItem === item.id}
+              isLiked={likedItems.has(item.id)}
+              likeCount={likeCounts[item.id] || item.likes}
+              onHover={() => setHoveredItem(item.id)}
+              onLeave={() => setHoveredItem(null)}
+              onClick={() => setLightboxItem(item)}
+              onLike={(e) => handleLike(e, item.id)}
+            />
           ))}
         </div>
 
