@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import { ScrollReveal } from '@/hooks/useScrollReveal';
-import { Play, Pause, Heart, Eye, ExternalLink } from 'lucide-react';
+import { Play, Heart, Eye, ExternalLink, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { GalleryParticles } from './GalleryParticles';
+import { GalleryLightbox } from './GalleryLightbox';
 
 interface GalleryItem {
   id: string;
@@ -77,31 +78,103 @@ const galleryItems: GalleryItem[] = [
     likes: 678,
     category: 'Abstract',
   },
+  {
+    id: '7',
+    title: 'Solar Flare Burst',
+    author: 'Liam Park',
+    description: 'Explosive solar flare particles erupting with intense plasma energy and coronal mass ejection dynamics.',
+    thumbnail: 'https://images.unsplash.com/photo-1534996858221-380b92700493?w=600&q=80',
+    views: 18300,
+    likes: 1340,
+    category: 'Space',
+  },
+  {
+    id: '8',
+    title: 'Rain on Glass',
+    author: 'Mia Torres',
+    description: 'Photorealistic rain droplets sliding down glass with refraction, bokeh blur, and soft ambient glow.',
+    thumbnail: 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=600&q=80',
+    views: 11200,
+    likes: 920,
+    category: 'Nature',
+  },
+  {
+    id: '9',
+    title: 'Neon Metro Pulse',
+    author: 'Jake Wilson',
+    description: 'Cyberpunk cityscape particles pulsing with neon trails, light streaks, and electric fog.',
+    thumbnail: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=600&q=80',
+    views: 13700,
+    likes: 1050,
+    category: 'Urban',
+  },
+  {
+    id: '10',
+    title: 'Fractal Bloom',
+    author: 'Chloe Nakamura',
+    description: 'Recursive fractal particles blooming outward in hypnotic, self-similar spiraling patterns.',
+    thumbnail: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=600&q=80',
+    views: 6800,
+    likes: 480,
+    category: 'Abstract',
+  },
+  {
+    id: '11',
+    title: 'Galaxy Collision',
+    author: 'Omar Hassan',
+    description: 'Two spiral galaxies merging in slow gravitational ballet, with tidal streams of stars and interstellar dust.',
+    thumbnail: 'https://images.unsplash.com/photo-1543722530-d2c3201371e7?w=600&q=80',
+    views: 24500,
+    likes: 2100,
+    category: 'Space',
+  },
+  {
+    id: '12',
+    title: 'Cherry Blossom Drift',
+    author: 'Yuki Tanaka',
+    description: 'Delicate sakura petals drifting on gentle spring wind with soft depth-of-field and ambient sunlight.',
+    thumbnail: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=600&q=80',
+    views: 16100,
+    likes: 1560,
+    category: 'Nature',
+  },
 ];
 
+const ITEMS_PER_PAGE = 6;
 const categories = ['All', 'Space', 'Nature', 'Urban', 'Abstract'];
+
+const formatNumber = (num: number): string => {
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+  return num.toString();
+};
 
 export function GallerySection() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+  const [lightboxItem, setLightboxItem] = useState<GalleryItem | null>(null);
 
-  const filteredItems = activeCategory === 'All' 
-    ? galleryItems 
+  const filteredItems = activeCategory === 'All'
+    ? galleryItems
     : galleryItems.filter(item => item.category === activeCategory);
 
-  const formatNumber = (num: number): string => {
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'k';
-    }
-    return num.toString();
+  const displayedItems = filteredItems.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredItems.length;
+
+  const handleCategoryChange = (category: string) => {
+    setActiveCategory(category);
+    setVisibleCount(ITEMS_PER_PAGE);
+  };
+
+  const loadMore = () => {
+    setVisibleCount(prev => prev + ITEMS_PER_PAGE);
   };
 
   return (
     <section id="gallery" className="py-24 relative overflow-hidden">
-      {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-background via-muted/20 to-background" />
       <GalleryParticles />
-      
+
       <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
         <ScrollReveal className="text-center max-w-3xl mx-auto mb-12">
@@ -123,7 +196,7 @@ export function GallerySection() {
           {categories.map((category) => (
             <button
               key={category}
-              onClick={() => setActiveCategory(category)}
+              onClick={() => handleCategoryChange(category)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                 activeCategory === category
                   ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
@@ -137,12 +210,13 @@ export function GallerySection() {
 
         {/* Gallery Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredItems.map((item, index) => (
+          {displayedItems.map((item, index) => (
             <ScrollReveal key={item.id} delay={index * 0.1}>
               <div
-                className="group relative rounded-2xl overflow-hidden bg-card border border-border/50 hover:border-primary/50 transition-all duration-500 hover:shadow-xl hover:shadow-primary/10"
+                className="group relative rounded-2xl overflow-hidden bg-card border border-border/50 hover:border-primary/50 transition-all duration-500 hover:shadow-xl hover:shadow-primary/10 cursor-pointer"
                 onMouseEnter={() => setHoveredItem(item.id)}
                 onMouseLeave={() => setHoveredItem(null)}
+                onClick={() => setLightboxItem(item)}
               >
                 {/* Thumbnail */}
                 <div className="aspect-video relative overflow-hidden">
@@ -152,13 +226,9 @@ export function GallerySection() {
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     loading="lazy"
                   />
-                  
-                  {/* Overlay */}
                   <div className={`absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent transition-opacity duration-300 ${
                     hoveredItem === item.id ? 'opacity-100' : 'opacity-0'
                   }`} />
-                  
-                  {/* Play Button */}
                   <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${
                     hoveredItem === item.id ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
                   }`}>
@@ -166,8 +236,6 @@ export function GallerySection() {
                       <Play className="h-7 w-7 ml-1" fill="currentColor" />
                     </button>
                   </div>
-
-                  {/* Category Badge */}
                   <div className="absolute top-3 left-3">
                     <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-background/80 backdrop-blur-sm text-foreground border border-border/50">
                       {item.category}
@@ -195,8 +263,6 @@ export function GallerySection() {
                   <p className="text-sm text-muted-foreground/70 mb-3">
                     by {item.author}
                   </p>
-                  
-                  {/* Stats */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1.5">
@@ -208,7 +274,6 @@ export function GallerySection() {
                         {formatNumber(item.likes)}
                       </span>
                     </div>
-                    
                     <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg hover:bg-muted/50">
                       <ExternalLink className="h-4 w-4 text-muted-foreground" />
                     </button>
@@ -226,20 +291,40 @@ export function GallerySection() {
           ))}
         </div>
 
-        {/* CTA */}
+        {/* Load More / CTA */}
         <ScrollReveal delay={0.3} className="text-center mt-12">
-          <Button 
-            size="lg"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25"
-          >
-            View All Creations
-            <ExternalLink className="h-4 w-4 ml-2" />
-          </Button>
+          {hasMore ? (
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={loadMore}
+              className="border-primary/30 text-foreground hover:bg-primary/10 hover:border-primary/50"
+            >
+              Load More
+              <ChevronDown className="h-4 w-4 ml-2" />
+            </Button>
+          ) : (
+            <Button
+              size="lg"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25"
+            >
+              View All Creations
+              <ExternalLink className="h-4 w-4 ml-2" />
+            </Button>
+          )}
           <p className="text-sm text-muted-foreground mt-4">
             Over 10,000+ animations created by our community
           </p>
         </ScrollReveal>
       </div>
+
+      {/* Lightbox */}
+      <GalleryLightbox
+        item={lightboxItem}
+        open={!!lightboxItem}
+        onClose={() => setLightboxItem(null)}
+        formatNumber={formatNumber}
+      />
     </section>
   );
 }
