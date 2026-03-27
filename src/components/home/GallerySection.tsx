@@ -100,6 +100,7 @@ export function GallerySection() {
     <section id="gallery" className="py-24 relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-background via-muted/20 to-background" />
+      <GalleryParticles />
       
       <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
