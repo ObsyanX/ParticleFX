@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { ScrollReveal } from '@/hooks/useScrollReveal';
 import { Play, Heart, Eye, ExternalLink, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
