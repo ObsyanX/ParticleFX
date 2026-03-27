@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { ScrollReveal } from '@/hooks/useScrollReveal';
 import { Play, Pause, Heart, Eye, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { GalleryParticles } from './GalleryParticles';
 
 interface GalleryItem {
   id: string;
@@ -98,6 +100,7 @@ export function GallerySection() {
     <section id="gallery" className="py-24 relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-background via-muted/20 to-background" />
+      <GalleryParticles />
       
       <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
@@ -177,9 +180,18 @@ export function GallerySection() {
                   <h3 className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors">
                     {item.title}
                   </h3>
-                  <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
-                    {item.description}
-                  </p>
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p className="text-xs text-muted-foreground mb-2 line-clamp-2 cursor-default">
+                          {item.description}
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs">
+                        {item.description}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <p className="text-sm text-muted-foreground/70 mb-3">
                     by {item.author}
                   </p>
