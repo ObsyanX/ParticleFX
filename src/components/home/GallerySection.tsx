@@ -180,9 +180,18 @@ export function GallerySection() {
                   <h3 className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors">
                     {item.title}
                   </h3>
-                  <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
-                    {item.description}
-                  </p>
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p className="text-xs text-muted-foreground mb-2 line-clamp-2 cursor-default">
+                          {item.description}
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs">
+                        {item.description}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <p className="text-sm text-muted-foreground/70 mb-3">
                     by {item.author}
                   </p>
